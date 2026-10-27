@@ -45,7 +45,7 @@ async function calc() {
     const volumes = Object.fromEntries(Object.entries(sel.value).filter(([, v]) => v.on && v.liters > 0).map(([k, v]) => [k, v.liters]))
     if (!Object.keys(volumes).length) { say('Mindestens eine Pflanze mit Wassermenge wählen'); return }
     cans.value = await api.post('feeding/recipe', { run_id: runId.value, volumes, extras: extras.value.filter((e) => e.product_key) })
-    meas.value = Object.fromEntries(cans.value.map((_, i) => [i, { ph_in: null, ec_in: null, ph_down_ml_total: null, text: '' }]))
+    meas.value = Object.fromEntries(cans.value.map((_, i) => [i, { ph_in: null, ec_in: null, ph_down_ml_total: null, text: '', teas: [] }]))
   } catch (e) { say(e.message) } finally { busy.value = false }
 }
 async function confirmCan(i) {
@@ -125,6 +125,16 @@ onMounted(load)
       </details>
       <ul class="small muted" v-if="c.info.length"><li v-for="x in c.info" :key="x">{{ x }}</li></ul>
 
+      <div v-if="c.suggestions?.length" class="stack">
+        <h3>Tees & Top-Dress</h3>
+        <label v-for="t in c.suggestions" :key="t.key" class="row tea">
+          <input type="checkbox" :value="t.key" v-model="meas[i].teas" />
+          <span class="grow">{{ t.name }} <span class="chip" :class="t.due ? 'ok' : ''">{{ t.due ? 'fällig' : 'zuletzt ' + fmt.date(t.last) }}</span><br />
+            <span class="small muted">{{ t.summary }} <router-link :to="{ path: '/living-soil', query: { tab: 'tees' } }">Anleitung</router-link></span></span>
+        </label>
+        <p class="small muted">Anhaken, was du dieser Kanne beigibst – die App merkt sich den Termin.</p>
+      </div>
+
       <div class="sunken stack">
         <p><strong>pH {{ fmt.n(c.ph.target[0]) }}–{{ fmt.n(c.ph.target[1]) }}</strong>
           <span class="small muted"> Leitungswasser pH {{ fmt.n(c.ph.tap_ph) }}</span></p>
@@ -145,6 +155,8 @@ onMounted(load)
 
 <style scoped>
 .plantrow { flex-wrap: nowrap; }
+.tea { align-items: flex-start; flex-wrap: nowrap; }
+.tea input { margin-top: 4px; }
 .liters { display: flex; align-items: center; gap: 6px; width: 110px; }
 .extra { display: grid; grid-template-columns: 1fr 96px 96px 44px; gap: 6px; }
 .total { font-weight: 600; font-size: 1.15rem; }

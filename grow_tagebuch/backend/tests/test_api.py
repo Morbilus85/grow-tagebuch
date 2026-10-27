@@ -57,3 +57,14 @@ def test_household_limit():
             last = c.post("/api/plants", json={"run_id": run["id"], "name": f"L{i}", "planted_on": "2026-10-27"}).json()
         assert "warning" in last
         assert c.put("/api/household", json={"adults": 3}).json()["status"] == "ok"
+
+
+def test_living_soil_batch():
+    with TestClient(app) as c:
+        b = c.post("/api/living-soil/batches", json={"recipe_key": "vegan_diy", "volume_l": 66}).json()
+        assert b["id"] and b["status"] == "reift" and b["calc"]["bulk"]
+        assert any("Ansatz" in t["title"] for t in c.get("/api/tasks").json())
+        soil = c.post(f"/api/living-soil/batches/{b['id']}/soil").json()
+        assert soil["schedule_type"] == "living_soil"
+        c.patch(f"/api/living-soil/batches/{b['id']}", json={"status": "fertig"})
+        assert not any("Ansatz" in t["title"] for t in c.get("/api/tasks").json())

@@ -242,3 +242,34 @@ def test_germination_timeline():
     p.planted_on = date(2026, 10, 27)
     g = services.germination(p, dt(2026, 10, 30, 8, 0))
     assert g["stage"] == "in_erde" and "2–5 Tage" in g["hint"]
+
+
+# ---------------------------------------------------------------- Living Soil
+
+from app.logic import living_soil  # noqa: E402
+
+
+def test_ls_calc_diy():
+    r = living_soil.calculate("vegan_diy", 60, {"basis": "torf_ungeduengt"}, {"neem_cake", "dolomitkalk"})
+    assert sum(b["amount"] for b in r["bulk"]) == 60
+    neem = next(a for a in r["amendments"] if a["key"] == "neem_cake")
+    assert neem["amount"] == 240 and neem["owned"]
+    assert any(a["key"] == "dolomitkalk" for a in r["amendments"])
+    r2 = living_soil.calculate("vegan_diy", 60, {"basis": "kokos"})
+    assert not any(a["key"] == "dolomitkalk" for a in r2["amendments"])
+    assert any(s["name"].startswith("Kelpmehl") for s in r["shopping"])
+
+
+def test_ls_allinone_dose():
+    r = living_soil.calculate("allinone_monster_bud", 20)
+    mb = next(a for a in r["amendments"] if a["key"] == "monster_bud_ls")
+    assert mb["amount"] == 220
+
+
+def test_feeding_living_soil():
+    soil = NS(prefertilized_weeks=0, schedule_type="living_soil", worm_humus_pct=30)
+    r = feeding.build_recipe([ctx("veg", "veg", 3)], {1: 1}, sched("veg"), PRODS, soil, WATER,
+                             extras=[{"product_key": "biobizz_bio_grow", "per_l": 2}])
+    assert r["living_soil"] and not any(i["source"] == "schema" for i in r["items"])
+    assert any("Grunddünger" in w for w in r["warnings"])
+    assert any(s["key"] == "wurmhumustee" for s in r["suggestions"])

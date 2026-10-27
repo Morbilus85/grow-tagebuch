@@ -63,6 +63,8 @@ def soil_block_weeks(soil) -> int:
 def feed_factor(ctx: PlantCtx, soil, today: date) -> tuple[float, list[str], bool]:
     """Liefert (Faktor für Grunddünger, Begründungen, Grunddünger gesperrt?)."""
     reasons = []
+    if soil and soil.schedule_type == "living_soil":
+        return 1.0, reasons, False
     block = soil_block_weeks(soil)
     blocked = ctx.weeks_in_soil < block
     if blocked:
@@ -122,6 +124,22 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
 
     factor, reasons, base_blocked = feed_factor(lead, soil, today)
     info.extend(reasons)
+    living = bool(soil and soil.schedule_type == "living_soil")
+    suggestions = []
+    if living:
+        from .living_soil import teas_for_phase
+        schedule = {}
+        info.append("Living Soil: keine Grunddünger aus der Flasche – die Erde versorgt die Pflanze. Gießen mit Wasser, bei Bedarf Tees oder Top-Dress.")
+        last_by_tea = {}
+        for l in all_logs:
+            for t in (l.tags or []):
+                if t.startswith("tee:") and t not in last_by_tea:
+                    last_by_tea[t] = l.ts.date()
+        for t in teas_for_phase(lead.phase if lead.phase != "seedling" else "seedling"):
+            last = last_by_tea.get("tee:" + t["key"])
+            due = last is None or (today - last).days >= t["interval_days"]
+            suggestions.append({"key": t["key"], "name": t["name"], "summary": t["summary"], "due": due,
+                                "last": last.isoformat() if last else None, "interval_days": t["interval_days"]})
 
     for key, dose in sorted(schedule.items()):
         p = products.get(key)
@@ -149,7 +167,7 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
     # CalMag: weiches Wasser, Mg knapp -> ab Blüte oder bei Mg-Mangel
     cm = products.get("biobizz_calmag")
     in_bloom = stage and stage.startswith("bloom")
-    if cm and cm.in_stock and stage not in (None, "flush", "seedling") and (in_bloom or any(c.mg_flag for c in ctx_group)):
+    if cm and cm.in_stock and not living and stage not in (None, "flush", "seedling") and (in_bloom or any(c.mg_flag for c in ctx_group)):
         if water and (water.mg_mg_l or 99) < 15:
             dose = cm.label_dose_min or (cm.label_dose_max / 2 if cm.label_dose_max else None)
             early = stage in ("bloom_1", "bloom_2") and not any(c.mg_flag for c in ctx_group)
@@ -182,6 +200,8 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
             warnings.append("Brennnessel ist stickstofflastig – ab Blüte W2 arbeitet sie gegen Bio-Bloom/Top-Max.")
         if p.kind == "carbs" and not (lead.phase in ("bloom", "flush")):
             warnings.append(f"{p.name}: Kohlenhydrate erst ab Blüte sinnvoll; in Wachstum fördern sie eher Trauermücken/Schimmel.")
+        if living and p.kind == "base":
+            warnings.append(f"{p.name} ist ein Grunddünger – im Living Soil meist unnötig und ein Überdüngungsrisiko.")
         if p.label_dose_max and ex.get("per_l") and ex["per_l"] > p.label_dose_max:
             blocked = f"{p.name}: {ex['per_l']} über Etikett-Maximum {p.label_dose_max}."
         if blocked:
@@ -227,6 +247,8 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
         "warnings": warnings,
         "blocks": blocks,
         "info": info,
+        "living_soil": living,
+        "suggestions": suggestions,
         "ph": ph,
         "ec": ec,
     }

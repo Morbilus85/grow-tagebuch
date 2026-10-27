@@ -1,3 +1,9 @@
+## 0.4.0
+
+- Living Soil: veganer Zutatenkatalog mit Inventar, Rezepte (vegan selbst gemischt, Monster Bud Mix, Plant BoOom, Aufbereitung) mit Mengenrechner und Einkaufsliste.
+- Ansätze mit Reifezeit und Aufgaben (Feuchte prüfen, wenden), Übernahme als Erdprofil.
+- Düngelogik „Living Soil“: keine Grunddünger, Tees und Top-Dress nach Phase und Intervall im Gieß-Assistenten.
+
 ## 0.3.0
 
 - Keimung: 6 Methoden (Wasser + H2O2, Wasserglas, Küchenpapier, Direkt in die Erde, Anzuchtwürfel, Anritzen) mit Anleitung, Zeitplan und H2O2-Mischrechner.

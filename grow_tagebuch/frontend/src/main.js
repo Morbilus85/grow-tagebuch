@@ -15,6 +15,7 @@ import Schedules from './views/Schedules.vue'
 import Training from './views/Training.vue'
 import TrainingDetail from './views/TrainingDetail.vue'
 import Germination from './views/Germination.vue'
+import LivingSoil from './views/LivingSoil.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -32,6 +33,8 @@ const router = createRouter({
     { path: '/schema', component: Schedules },
     { path: '/training', component: Training },
     { path: '/keimung', component: Germination },
+    { path: '/living-soil', component: LivingSoil },
+    { path: '/living-soil/rezept/:key', component: LivingSoil },
     { path: '/keimung/:key', component: Germination },
     { path: '/training/:key', component: TrainingDetail },
   ],

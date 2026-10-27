@@ -320,6 +320,7 @@ class ConfirmReq(BaseModel):
     ec_in: Optional[float] = None
     ph_down_ml_total: Optional[float] = None
     text: str = ""
+    teas: list[str] = []
 
 
 @api.post("/feeding/confirm")
@@ -337,9 +338,9 @@ def feeding_confirm(req: ConfirmReq, session: Session = S):
         if ph_down:
             products.append({"product_key": "biobizz_bio_down", "name": "Bio-Down", "per_l": ph_down, "unit": "ml",
                              "amount": round(ph_down * vol, 2), "application": "giessen"})
-        l = LogEntry(run_id=req.run_id, plant_id=pl["id"], type="feeding" if items else "watering", volume_l=vol,
+        l = LogEntry(run_id=req.run_id, plant_id=pl["id"], type="feeding" if (items or req.teas) else "watering", volume_l=vol,
                      ph_in=req.ph_in, ec_in=req.ec_in, ph_down_ml_per_l=ph_down, products=products,
-                     text=req.text, tags=[req.recipe.get("stage") or ""])
+                     text=req.text, tags=[req.recipe.get("stage") or ""] + [f"tee:{t}" for t in req.teas])
         session.add(l)
         created.append(l)
     session.commit()
@@ -580,6 +581,120 @@ def delete_task(tid: int, session: Session = S):
     session.delete(_get(session, Task, tid))
     session.commit()
     return {"ok": True}
+
+
+# ------------------------------------------------------------------ Living Soil
+
+def _owned(session: Session) -> set:
+    from .living_soil_data import OWNED_DEFAULT
+    from .models import Setting
+    s = session.get(Setting, "ls_owned")
+    return set(s.value.get("keys", [])) if s else set(OWNED_DEFAULT)
+
+
+@api.get("/living-soil")
+def ls_info(session: Session = S):
+    from .living_soil_data import INGREDIENTS, RECIPES, ROLE_LABEL, TEAS
+    return {"ingredients": INGREDIENTS, "recipes": RECIPES, "teas": TEAS, "roles": ROLE_LABEL,
+            "owned": sorted(_owned(session))}
+
+
+@api.put("/living-soil/owned")
+def ls_set_owned(data: dict, session: Session = S):
+    from .models import Setting
+    s = session.get(Setting, "ls_owned") or Setting(key="ls_owned")
+    s.value = {"keys": sorted(set(data.get("keys", [])))}
+    session.add(s)
+    session.commit()
+    return {"owned": s.value["keys"]}
+
+
+@api.post("/living-soil/calc")
+def ls_calc(data: dict, session: Session = S):
+    from .logic import living_soil
+    if data.get("recipe_key") not in living_soil.REC:
+        raise HTTPException(404, "Rezept nicht gefunden")
+    return living_soil.calculate(data["recipe_key"], float(data.get("volume_l") or 60), data.get("choices") or {},
+                                 _owned(session), data.get("include_optional", True))
+
+
+@api.get("/living-soil/batches")
+def ls_batches(session: Session = S):
+    from .models import SoilBatch
+    return session.exec(select(SoilBatch).order_by(SoilBatch.started_on.desc())).all()
+
+
+@api.post("/living-soil/batches")
+def ls_create_batch(data: dict, session: Session = S):
+    from .logic import living_soil
+    from .models import SoilBatch
+    calc = living_soil.calculate(data["recipe_key"], float(data.get("volume_l") or 60), data.get("choices") or {},
+                                 _owned(session), data.get("include_optional", True))
+    started = date.fromisoformat(data.get("started_on") or date.today().isoformat())
+    rest = calc["recipe"]["rest_days"]
+    b = SoilBatch(name=data.get("name") or calc["recipe"]["name"], recipe_key=data["recipe_key"], volume_l=calc["volume_l"],
+                  choices={x["role"]: x["key"] for x in calc["bulk"]}, calc=calc, started_on=started,
+                  ready_on=started + timedelta(days=rest[0]), status="reift" if rest[1] > 0 else "fertig",
+                  notes=data.get("notes", ""))
+    session.add(b)
+    session.commit()
+    session.refresh(b)
+    if rest[1] > 0:
+        session.add_all([
+            Task(batch_id=b.id, title=f"Ansatz „{b.name}“: Feuchte prüfen", interval_days=3, due_on=started + timedelta(days=3)),
+            Task(batch_id=b.id, title=f"Ansatz „{b.name}“: wenden", interval_days=7, due_on=started + timedelta(days=7)),
+            Task(batch_id=b.id, title=f"Ansatz „{b.name}“ ist voraussichtlich fertig – Geruch und Temperatur prüfen",
+                 due_on=b.ready_on),
+        ])
+        session.commit()
+        session.refresh(b)
+    return b
+
+
+@api.patch("/living-soil/batches/{bid}")
+def ls_update_batch(bid: int, data: dict, session: Session = S):
+    from .models import SoilBatch
+    b = _apply(_get(session, SoilBatch, bid), data, exclude=("id", "calc", "recipe_key"))
+    if b.status in ("fertig", "verwendet"):
+        for t in session.exec(select(Task).where(Task.batch_id == bid, Task.active == True)).all():  # noqa: E712
+            t.active = False
+            session.add(t)
+    session.add(b)
+    session.commit()
+    session.refresh(b)
+    return b
+
+
+@api.delete("/living-soil/batches/{bid}")
+def ls_delete_batch(bid: int, session: Session = S):
+    from .models import SoilBatch
+    b = _get(session, SoilBatch, bid)
+    for t in session.exec(select(Task).where(Task.batch_id == bid)).all():
+        session.delete(t)
+    session.delete(b)
+    session.commit()
+    return {"ok": True}
+
+
+@api.post("/living-soil/batches/{bid}/soil")
+def ls_batch_to_soil(bid: int, session: Session = S):
+    """Legt aus dem Ansatz ein Erdprofil mit Düngelogik „Living Soil“ an."""
+    from .models import SoilBatch
+    b = _get(session, SoilBatch, bid)
+    if b.soil_id:
+        return session.get(SoilProfile, b.soil_id)
+    comps = [{"name": x["name"], "pct": round(x["share"] * 100)} for x in b.calc.get("bulk", [])]
+    soil = SoilProfile(name=f"Living Soil: {b.name}", schedule_type="living_soil", prefertilized_weeks=0,
+                       worm_humus_pct=next((c["pct"] for c in comps if "Wurmhumus" in c["name"]), 0), components=comps,
+                       notes=f"Angesetzt am {b.started_on:%d.%m.%Y} nach Rezept „{b.calc['recipe']['name']}“.")
+    session.add(soil)
+    session.commit()
+    session.refresh(soil)
+    b.soil_id = soil.id
+    session.add(b)
+    session.commit()
+    session.refresh(soil)
+    return soil
 
 
 # ------------------------------------------------------------------ Keimung

@@ -223,9 +223,24 @@ class ClimateSample(SQLModel, table=True):
     aggregated: bool = False
 
 
+class SoilBatch(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    recipe_key: str
+    volume_l: float
+    choices: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    calc: dict = Field(default_factory=dict, sa_column=Column(JSON))  # Rezept-Snapshot mit Mengen
+    started_on: date
+    ready_on: Optional[date] = None
+    status: str = "reift"  # reift | fertig | verwendet
+    soil_id: Optional[int] = Field(default=None, foreign_key="soilprofile.id")
+    notes: str = ""
+
+
 class Task(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     run_id: Optional[int] = Field(default=None, foreign_key="run.id")
+    batch_id: Optional[int] = Field(default=None, foreign_key="soilbatch.id")
     title: str
     interval_days: Optional[int] = None  # None = einmalig
     due_on: date
