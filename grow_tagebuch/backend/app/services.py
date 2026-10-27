@@ -83,9 +83,12 @@ def recipes(session: Session, run: Run, volumes: dict[int, float], extras=None, 
         groups.setdefault((ctx.stage, f, blocked), []).append(ctx)
     out = []
     vols = {int(k): float(v) for k, v in volumes.items()}
+    from .models import Setting
+    mode = session.get(Setting, "ls_mode")
+    ls_vegan = bool(mode and mode.value.get("mode") == "vegan")
     for (stage, _f, _b), ctxs in groups.items():
         sched = schedule_for_stage(session, run.schedule_id, stage)
-        r = feeding.build_recipe(ctxs, vols, sched, products, soil, water, today, extras, lights_on)
+        r = feeding.build_recipe(ctxs, vols, sched, products, soil, water, today, extras, lights_on, ls_vegan)
         out.append(r)
     return out
 

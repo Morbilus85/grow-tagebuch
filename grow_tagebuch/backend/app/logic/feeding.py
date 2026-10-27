@@ -93,7 +93,7 @@ def ph_down_hint(recent_logs) -> Optional[float]:
 
 def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule: dict[str, float], products: dict,
                  soil, water, today: Optional[date] = None, extras: Optional[list[dict]] = None,
-                 lights_on: Optional[bool] = None) -> dict:
+                 lights_on: Optional[bool] = None, ls_vegan: bool = False) -> dict:
     """Ein Kannen-Rezept für eine Gruppe von Pflanzen in derselben Stufe.
 
     schedule: product_key -> ml/l für die Stufe der Gruppe
@@ -135,7 +135,7 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
             for t in (l.tags or []):
                 if t.startswith("tee:") and t not in last_by_tea:
                     last_by_tea[t] = l.ts.date()
-        for t in teas_for_phase(lead.phase if lead.phase != "seedling" else "seedling"):
+        for t in teas_for_phase(lead.phase, vegan=ls_vegan):
             last = last_by_tea.get("tee:" + t["key"])
             due = last is None or (today - last).days >= t["interval_days"]
             suggestions.append({"key": t["key"], "name": t["name"], "summary": t["summary"], "due": due,

@@ -68,3 +68,14 @@ def test_living_soil_batch():
         assert soil["schedule_type"] == "living_soil"
         c.patch(f"/api/living-soil/batches/{b['id']}", json={"status": "fertig"})
         assert not any("Ansatz" in t["title"] for t in c.get("/api/tasks").json())
+
+
+def test_living_soil_mode():
+    with TestClient(app) as c:
+        assert c.get("/api/living-soil").json()["mode"] is None
+        c.put("/api/living-soil/mode", json={"mode": "vegan"})
+        d = c.get("/api/living-soil").json()
+        assert all(r["vegan"] for r in d["recipes"]) and all(i["vegan"] for i in d["ingredients"])
+        assert c.post("/api/living-soil/calc", json={"recipe_key": "classic_diy"}).status_code == 400
+        c.put("/api/living-soil/mode", json={"mode": "alle"})
+        assert any(not r["vegan"] for r in c.get("/api/living-soil").json()["recipes"])

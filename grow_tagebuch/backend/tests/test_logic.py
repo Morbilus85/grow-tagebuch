@@ -273,3 +273,15 @@ def test_feeding_living_soil():
     assert r["living_soil"] and not any(i["source"] == "schema" for i in r["items"])
     assert any("Grunddünger" in w for w in r["warnings"])
     assert any(s["key"] == "wurmhumustee" for s in r["suggestions"])
+
+
+def test_ls_vegan_mode():
+    r = living_soil.calculate("reamend", 60, vegan=True)
+    assert not any(a["key"] == "krabbenmehl" for a in r["amendments"])
+    r = living_soil.calculate("reamend", 60, vegan=False)
+    assert any(a["key"] == "krabbenmehl" for a in r["amendments"])
+    import pytest
+    with pytest.raises(ValueError):
+        living_soil.calculate("classic_diy", 60, vegan=True)
+    assert any(t["key"] == "topdress_bluete" for t in living_soil.teas_for_phase("bloom"))
+    assert not any(t["key"] == "topdress_bluete" for t in living_soil.teas_for_phase("bloom", vegan=True))

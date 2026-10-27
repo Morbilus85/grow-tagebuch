@@ -592,11 +592,35 @@ def _owned(session: Session) -> set:
     return set(s.value.get("keys", [])) if s else set(OWNED_DEFAULT)
 
 
+def _ls_mode(session: Session) -> Optional[str]:
+    from .models import Setting
+    s = session.get(Setting, "ls_mode")
+    return s.value.get("mode") if s else None
+
+
 @api.get("/living-soil")
 def ls_info(session: Session = S):
     from .living_soil_data import INGREDIENTS, RECIPES, ROLE_LABEL, TEAS
-    return {"ingredients": INGREDIENTS, "recipes": RECIPES, "teas": TEAS, "roles": ROLE_LABEL,
-            "owned": sorted(_owned(session))}
+    mode = _ls_mode(session)
+    vegan = mode == "vegan"
+    return {"mode": mode,
+            "ingredients": [i for i in INGREDIENTS if not (vegan and not i["vegan"])],
+            "recipes": [r for r in RECIPES if not (vegan and not r["vegan"])],
+            "teas": [t for t in TEAS if not (vegan and t.get("vegan") is False)],
+            "roles": ROLE_LABEL, "owned": sorted(_owned(session))}
+
+
+@api.put("/living-soil/mode")
+def ls_set_mode(data: dict, session: Session = S):
+    from .models import Setting
+    mode = data.get("mode")
+    if mode not in ("vegan", "alle"):
+        raise HTTPException(400, "mode muss 'vegan' oder 'alle' sein")
+    s = session.get(Setting, "ls_mode") or Setting(key="ls_mode")
+    s.value = {"mode": mode}
+    session.add(s)
+    session.commit()
+    return {"mode": mode}
 
 
 @api.put("/living-soil/owned")
@@ -614,8 +638,11 @@ def ls_calc(data: dict, session: Session = S):
     from .logic import living_soil
     if data.get("recipe_key") not in living_soil.REC:
         raise HTTPException(404, "Rezept nicht gefunden")
-    return living_soil.calculate(data["recipe_key"], float(data.get("volume_l") or 60), data.get("choices") or {},
-                                 _owned(session), data.get("include_optional", True))
+    try:
+        return living_soil.calculate(data["recipe_key"], float(data.get("volume_l") or 60), data.get("choices") or {},
+                                     _owned(session), data.get("include_optional", True), _ls_mode(session) == "vegan")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @api.get("/living-soil/batches")
@@ -628,8 +655,11 @@ def ls_batches(session: Session = S):
 def ls_create_batch(data: dict, session: Session = S):
     from .logic import living_soil
     from .models import SoilBatch
-    calc = living_soil.calculate(data["recipe_key"], float(data.get("volume_l") or 60), data.get("choices") or {},
-                                 _owned(session), data.get("include_optional", True))
+    try:
+        calc = living_soil.calculate(data["recipe_key"], float(data.get("volume_l") or 60), data.get("choices") or {},
+                                     _owned(session), data.get("include_optional", True), _ls_mode(session) == "vegan")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     started = date.fromisoformat(data.get("started_on") or date.today().isoformat())
     rest = calc["recipe"]["rest_days"]
     b = SoilBatch(name=data.get("name") or calc["recipe"]["name"], recipe_key=data["recipe_key"], volume_l=calc["volume_l"],

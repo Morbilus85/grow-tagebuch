@@ -9,7 +9,6 @@ const router = useRouter()
 const info = ref(null)
 const batches = ref([])
 const tab = ref(route.query.tab || 'rezepte')
-const veganOnly = ref(true)
 const recipeKey = computed(() => route.params.key)
 const recipe = computed(() => info.value?.recipes.find((r) => r.key === recipeKey.value))
 const volume = ref(66)
@@ -22,11 +21,10 @@ const startDate = ref(today())
 const TYPE = { diy: 'Selbst gemischt', allinone: 'All-in-One', reamend: 'Aufbereitung' }
 const STATUS = { reift: 'reift', fertig: 'fertig', verwendet: 'verwendet' }
 
-const recipes = computed(() => (info.value?.recipes || []).filter((r) => !veganOnly.value || r.vegan))
+const recipes = computed(() => info.value?.recipes || [])
 const ingByRole = computed(() => {
   const g = {}
   for (const i of info.value?.ingredients || []) {
-    if (veganOnly.value && !i.vegan) continue
     ;(g[i.role] ||= []).push(i)
   }
   return g
@@ -44,6 +42,11 @@ async function load() {
 async function recalc() {
   calc.value = await api.post('living-soil/calc', { recipe_key: recipeKey.value, volume_l: volume.value, choices: choices.value, include_optional: withOptional.value })
   choices.value = Object.fromEntries(calc.value.bulk.map((b) => [b.role, b.key]))
+}
+async function setMode(mode) {
+  await api.put('living-soil/mode', { mode })
+  say(mode === 'vegan' ? 'Anbauweise: vegan' : 'Anbauweise: vegan und tierisch')
+  await load()
 }
 async function toggleOwned(key) {
   const s = new Set(info.value.owned)
@@ -78,19 +81,36 @@ onMounted(load)
 
 <template>
   <main class="page stack-lg" v-if="info">
-    <template v-if="!recipe">
+    <template v-if="!info.mode">
+      <router-link to="/mehr" class="small muted">Zurück</router-link>
+      <h1>Living Soil</h1>
+      <p class="lead">Wie möchtest du anbauen?</p>
+      <p class="muted">Davon hängt ab, welche Zutaten, Rezepte und Top-Dress-Vorschläge die App anzeigt. Du kannst das später jederzeit ändern.</p>
+      <button class="panel choice" @click="setMode('vegan')">
+        <h3>Vegan</h3>
+        <p class="small muted">Nur pflanzliche und mineralische Zutaten: Neem, Kelp, Rohphosphat, Gesteinsmehle, Wurmhumus.</p>
+      </button>
+      <button class="panel choice" @click="setMode('alle')">
+        <h3>Vegan und tierisch</h3>
+        <p class="small muted">Zusätzlich Knochenmehl, Krabbenschalenmehl, Fledermausguano, Hornspäne, Fischmehl, Hühnermist. Vegane Rezepte bleiben sichtbar.</p>
+      </button>
+    </template>
+
+    <template v-else-if="!recipe">
       <router-link to="/mehr" class="small muted">Zurück</router-link>
       <h1>Living Soil</h1>
       <div class="row" role="tablist">
         <button v-for="[k, l] in [['rezepte', 'Rezepte'], ['ansaetze', 'Ansätze'], ['zutaten', 'Zutaten'], ['tees', 'Tees & Top-Dress']]" :key="k"
                 role="tab" :aria-selected="tab === k" :class="{ primary: tab === k }" @click="tab = k">{{ l }}</button>
       </div>
-      <label class="row small"><input type="checkbox" v-model="veganOnly" /> Nur vegane Zutaten und Rezepte</label>
+      <p class="row small muted">Anbauweise: {{ info.mode === 'vegan' ? 'vegan' : 'vegan und tierisch' }}
+        <button class="ghost mini" @click="setMode(info.mode === 'vegan' ? 'alle' : 'vegan')">ändern</button></p>
 
       <section v-if="tab === 'rezepte'" class="stack">
         <p class="muted">Mengen sind Richtwerte aus bewährten Community-Rezepten und Herstellerangaben – keine exakte Wissenschaft.</p>
         <router-link v-for="r in recipes" :key="r.key" :to="`/living-soil/rezept/${r.key}`" class="panel card">
-          <div class="row between"><h3>{{ r.name }}</h3><span class="chip">{{ TYPE[r.type] }}</span></div>
+          <div class="row between"><h3>{{ r.name }}</h3>
+            <span class="row"><span class="chip">{{ TYPE[r.type] }}</span><span class="chip" :class="r.vegan ? 'ok' : 'warn'">{{ r.vegan ? 'vegan' : 'tierisch' }}</span></span></div>
           <p class="small">{{ r.summary }}</p>
           <p class="small muted">Reifezeit {{ r.rest_days[1] ? `${r.rest_days[0]}–${r.rest_days[1]} Tage` : 'keine' }}</p>
         </router-link>
@@ -126,7 +146,8 @@ onMounted(load)
           <h3>{{ info.roles[role] }}</h3>
           <label v-for="i in items" :key="i.key" class="ing">
             <input type="checkbox" :checked="owned.has(i.key)" @change="toggleOwned(i.key)" />
-            <span><strong>{{ i.name }}</strong><span v-if="i.npk" class="small muted"> NPK {{ i.npk }}</span><br />
+            <span><strong>{{ i.name }}</strong><span v-if="i.npk" class="small muted"> NPK {{ i.npk }}</span>
+              <span v-if="!i.vegan" class="chip warn" style="margin-left:6px">tierisch</span><br />
               <span class="small muted">{{ i.note }}</span></span>
           </label>
         </div>
@@ -148,7 +169,7 @@ onMounted(load)
         <h1>{{ recipe.name }}</h1>
         <div class="row" style="margin-top:6px">
           <span class="chip">{{ TYPE[recipe.type] }}</span>
-          <span class="chip" :class="recipe.vegan ? 'ok' : 'warn'">{{ recipe.vegan ? 'vegan' : 'nicht vegan' }}</span>
+          <span class="chip" :class="recipe.vegan ? 'ok' : 'warn'">{{ recipe.vegan ? 'vegan' : 'tierisch' }}</span>
         </div>
       </div>
       <p class="lead">{{ recipe.summary }}</p>
@@ -215,6 +236,9 @@ onMounted(load)
 
 <style scoped>
 .card { display: block; text-decoration: none; }
+.choice { display: block; width: 100%; text-align: left; cursor: pointer; }
+.choice > * + * { margin-top: 6px; }
+.mini { min-height: 32px; padding: 2px 10px; font-size: .875rem; }
 .card > * + * { margin-top: 6px; }
 .lead { font-size: 1.1rem; }
 .line { align-items: flex-end; flex-wrap: nowrap; }

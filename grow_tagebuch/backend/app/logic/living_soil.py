@@ -16,8 +16,10 @@ def _round(v: float, unit: str) -> float:
 
 
 def calculate(recipe_key: str, volume_l: float, choices: Optional[dict] = None, owned: Optional[set] = None,
-              include_optional: bool = True) -> dict:
+              include_optional: bool = True, vegan: bool = False) -> dict:
     r = REC[recipe_key]
+    if vegan and not r["vegan"]:
+        raise ValueError("Rezept ist nicht vegan")
     choices = choices or {}
     owned = owned or set()
     bulk = []
@@ -41,6 +43,8 @@ def calculate(recipe_key: str, volume_l: float, choices: Optional[dict] = None, 
         if a.get("optional") and not include_optional:
             continue
         ing = ING[a["key"]]
+        if vegan and not ing["vegan"]:
+            continue
         amount = _round(a["per_l"] * volume_l, ing["unit"]) if a.get("per_l") else None
         amendments.append({"key": a["key"], "name": ing["name"], "role_label": ROLE_LABEL[ing["role"]],
                            "per_l": a.get("per_l"), "amount": amount, "unit": ing["unit"], "optional": bool(a.get("optional")),
@@ -53,6 +57,6 @@ def calculate(recipe_key: str, volume_l: float, choices: Optional[dict] = None, 
                             "Plane ca. 10 % mehr ein, als die Töpfe fassen – die Mischung setzt sich.")}
 
 
-def teas_for_phase(phase: Optional[str]) -> list[dict]:
+def teas_for_phase(phase: Optional[str], vegan: bool = False) -> list[dict]:
     group = {"seedling": "seedling", "veg": "veg", "bloom": "bloom", "flush": None}.get(phase or "", None)
-    return [t for t in TEAS if group and group in t["phases"]]
+    return [t for t in TEAS if group and group in t["phases"] and not (vegan and t.get("vegan") is False)]

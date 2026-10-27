@@ -1,3 +1,9 @@
+## 0.4.1
+
+- Living Soil: Anbauweise wählen (vegan oder vegan und tierisch).
+- Tierische Zutaten: Knochenmehl, Krabbenschalenmehl, Fledermausguano, Hornspäne, Fischmehl, Blutmehl, Hühnermist.
+- Neues Rezept „Klassisch selbst gemischt (Coots Mix)“, Top-Dress Blüte mit Guano und Knochenmehl.
+
 ## 0.4.0
 
 - Living Soil: veganer Zutatenkatalog mit Inventar, Rezepte (vegan selbst gemischt, Monster Bud Mix, Plant BoOom, Aufbereitung) mit Mengenrechner und Einkaufsliste.
