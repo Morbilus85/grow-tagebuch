@@ -48,7 +48,7 @@ Bereich **Grow-Zelt**, AC-Infinity-Integration („Homegrow“):
 | VPD (Sonde) | `sensor.homegrow_probe_sensor_sonden_vpd` | Wird zusätzlich selbst berechnet (Blatt-Offset) |
 | Temperatur/Feuchte/VPD (Controller) | `sensor.homegrow_controller_*` | Zweitquelle |
 | Abluft | `binary_sensor.homegrow_port_1_status`, `sensor.homegrow_port_1_aktuelle_leistung` | Port 1 |
-| Port 2 | `sensor.homegrow_port_2_aktuelle_leistung` | **Unbenannt – vermutlich die Lampe? (offene Frage)** |
+| Lampe (Ionframe EVO4) | `binary_sensor.homegrow_port_2_status`, `sensor.homegrow_port_2_aktuelle_leistung` | Port 2, Stufe 1–10 |
 | Heizmatte | `switch.steckdose_heizmatte`, `sensor.steckdose_heizmatte_power` | Bereich nicht zugewiesen |
 | Zusatzheizung | `switch.steckdose_growzelt_heizung`, `sensor.steckdose_growzelt_heizung_power` | |
 | Raumklima Grow Room | `sensor.sensor_display_grow_room_temperature`, `…_humidity` | Umgebung außerhalb des Zelts |
@@ -148,7 +148,8 @@ Berechnung:
 - Verlaufsdiagramm pro Run (Tag/Woche/gesamt), Tag-/Nachtwerte getrennt anhand des Lichtplans.
 
 ### 5.7 Licht
-- Lichtplan pro Run (Autos Standard 18/6, editierbar), Dimmstufe, Höhe.
+- Lichtplan pro Run (Autos Standard 20/4, editierbar), Stufe 1–10, Höhe.
+- Lichtzeiten und aktuelle Stufe werden aus Port 2 des Controllers gelesen.
 - Ziel-PPFD nach Phase (Sämling 200–300, Wachstum 400–600, Blüte 700–900 µmol/m²/s) und daraus DLI.
 - AC Infinity veröffentlicht für die Ionframe EVO4 keine PPFD-Karte nach Höhe. Deshalb **Kalibrierung**: Du misst einmal (z. B. mit der App „Photone“ oder einem PAR-Meter) bei 2–3 Höhen/Dimmstufen, die App interpoliert. Ohne Kalibrierung gibt es nur vorsichtige Standardwerte.
 
@@ -200,11 +201,11 @@ Installation: HA → Einstellungen → Add-ons → Add-on-Store → ⋮ → Repo
 
 ## 10. Offene Punkte
 
-1. **Port 2 am Controller** – ist das die Ionframe? Dann liest die App Lichtleistung und Lichtzeiten direkt aus HA.
-2. **Lichtplan für die Autos** – 18/6 oder 20/4? (Die Heizungsautomationen im Zelt liefen zuletzt auf 15/9.)
-3. **Strawberry Cough Auto** – welcher Breeder? Davon hängt die geschätzte Gesamtdauer ab.
-4. **Etikett-Dosierungen** für DiMikro, Rootmax, Ackerschachtelhalm-Konzentrat, Brennnesselpulver, Aloe-Vera-Puder, Neem Cake: am einfachsten Fotos der Rückseiten-Etiketten.
-5. **Messgerät für Licht** – hast du ein PAR-Meter, oder nutzen wir die Photone-App zur Kalibrierung?
+Geklärt: Port 2 = Lampe · Lichtplan Autos 20/4 · Kalibrierung per eigener Messung (Anleitung: `docs/LICHTMESSUNG.md`).
+
+1. **Strawberry Cough Auto** – welcher Breeder? Davon hängt die geschätzte Gesamtdauer ab.
+2. **Etikett-Dosierungen** für DiMikro, Rootmax, Ackerschachtelhalm-Konzentrat, Brennnesselpulver, Aloe-Vera-Puder, Neem Cake (Fotos folgen).
+3. **Messgerät** – PAR- oder Lux-Meter? (bestimmt die Umrechnung)
 
 ## Anhang A – Inventar zum Start
 
