@@ -582,6 +582,14 @@ def delete_task(tid: int, session: Session = S):
     return {"ok": True}
 
 
+# ------------------------------------------------------------------ Keimung
+
+@api.get("/germination")
+def germination_list():
+    from .germination_data import AFTER_PLANTING, GENERAL, METHODS
+    return {"general": GENERAL, "after_planting": AFTER_PLANTING, "methods": METHODS}
+
+
 # ------------------------------------------------------------------ Training
 
 @api.get("/training")

@@ -230,3 +230,15 @@ def test_training_recovery_and_height():
 def test_training_rank():
     res = training.rank([ev(k) for k in TECH])
     assert res[0]["status"] == "jetzt" and res[-1]["status"] == "nicht_empfohlen"
+
+
+def test_germination_timeline():
+    from datetime import datetime as dt
+    from app import services
+    p = NS(sprouted_on=None, harvested_on=None, planted_on=None, soaked_on=date(2026, 10, 26),
+           soaked_at=dt(2026, 10, 26, 18, 0), germ_method="h2o2")
+    g = services.germination(p, dt(2026, 10, 27, 8, 0))
+    assert g["stage"] == "einweichen" and "Nachsehen" in g["hint"] and g["next_in_hours"] == 10
+    p.planted_on = date(2026, 10, 27)
+    g = services.germination(p, dt(2026, 10, 30, 8, 0))
+    assert g["stage"] == "in_erde" and "2–5 Tage" in g["hint"]

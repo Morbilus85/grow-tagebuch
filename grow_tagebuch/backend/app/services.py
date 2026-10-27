@@ -148,18 +148,53 @@ def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup
         "space": sp,
         "actions": actions,
         "nodes": latest_nodes(session, plant.id),
+        "germination": germination(plant),
         "training_now": [{"key": t["key"], "name": t["name"], "priority": t["priority"], "suitability": t["suitability"]}
                          for t in now_list[:4]],
         "training_wait": next(({"name": t["name"], "reason": t["reasons"][0]} for t in tr if t["status"] == "warten"), None),
     }
 
 
+def germination(plant: Plant, now_dt: Optional[datetime] = None) -> Optional[dict]:
+    """Aktueller Schritt der Keimung nach Methode und Zeit."""
+    from .germination_data import AFTER_PLANTING, METHODS
+    if plant.sprouted_on or plant.harvested_on:
+        return None
+    now_dt = now_dt or datetime.now()
+    m = next((x for x in METHODS if x["key"] == plant.germ_method), None)
+    out = {"method_key": plant.germ_method, "method_name": m["name"] if m else None, "stage": None, "hint": None,
+           "next_hint": None, "next_in_hours": None}
+    if plant.planted_on:
+        days = (now_dt.date() - plant.planted_on).days
+        cur = [e for e in AFTER_PLANTING if e["day"] <= days]
+        nxt = [e for e in AFTER_PLANTING if e["day"] > days]
+        out.update(stage="in_erde", elapsed=f"Tag {days + 1} nach dem Einsetzen", hint=cur[-1]["text"] if cur else None)
+        if nxt:
+            out.update(next_hint=nxt[0]["text"], next_in_hours=(nxt[0]["day"] - days) * 24)
+        return out
+    start = plant.soaked_at or (datetime.combine(plant.soaked_on, datetime.min.time()) if plant.soaked_on else None)
+    if not start:
+        out.update(stage="geplant", hint="Keimmethode wählen und Einweichen starten." if not m else f"Bereit: {m['name']}.")
+        return out
+    hours = (now_dt - start).total_seconds() / 3600
+    tl = (m or {}).get("timeline") or []
+    cur = [e for e in tl if e["hours"] <= hours]
+    nxt = [e for e in tl if e["hours"] > hours]
+    out.update(stage="einweichen", hours=round(hours, 1), elapsed=f"seit {int(hours)} Stunden",
+               hint=cur[-1]["text"] if cur else ("Sobald eine Keimwurzel sichtbar ist: einsetzen und „Gesetzt“ eintragen." if not tl else None))
+    if nxt:
+        out.update(next_hint=nxt[0]["text"], next_in_hours=round(nxt[0]["hours"] - hours, 1))
+    return out
+
+
 def next_actions(plant: Plant, ph: phases.PhaseInfo, last_water, today: date) -> list[str]:
     a = []
-    if ph.phase == "einweichen":
-        a.append("Samen einsetzen und Datum unter „Gesetzt“ eintragen.")
-    elif ph.phase == "keimung":
-        a.append("Erde feucht, nicht nass halten. Sobald der Keimling sichtbar ist: „Aufgelaufen“ eintragen.")
+    g = germination(plant)
+    if ph.phase in ("einweichen", "keimung", "geplant"):
+        if g and g.get("hint"):
+            a.append(g["hint"])
+        if ph.phase == "keimung":
+            a.append("Sobald der Keimling sichtbar ist: „Aufgelaufen“ eintragen.")
     elif ph.phase == "seedling":
         a.append("Nur im Ring um den Keimling gießen (0,1–0,3 l).")
     if ph.phase == "veg" and not plant.preflower_on and ph.preflower_date and (ph.preflower_date - today).days <= 7:

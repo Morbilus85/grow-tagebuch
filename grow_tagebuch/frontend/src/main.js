@@ -14,6 +14,7 @@ import Inventory from './views/Inventory.vue'
 import Schedules from './views/Schedules.vue'
 import Training from './views/Training.vue'
 import TrainingDetail from './views/TrainingDetail.vue'
+import Germination from './views/Germination.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -30,6 +31,8 @@ const router = createRouter({
     { path: '/inventar', component: Inventory },
     { path: '/schema', component: Schedules },
     { path: '/training', component: Training },
+    { path: '/keimung', component: Germination },
+    { path: '/keimung/:key', component: Germination },
     { path: '/training/:key', component: TrainingDetail },
   ],
   scrollBehavior: () => ({ top: 0 }),

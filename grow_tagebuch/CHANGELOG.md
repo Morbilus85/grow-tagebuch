@@ -1,3 +1,8 @@
+## 0.3.0
+
+- Keimung: 6 Methoden (Wasser + H2O2, Wasserglas, Küchenpapier, Direkt in die Erde, Anzuchtwürfel, Anritzen) mit Anleitung, Zeitplan und H2O2-Mischrechner.
+- Pro Pflanze: Keimmethode, Start des Einweichens, nächster Schritt mit Zeitangabe; Einweichen für alle Pflanzen eines Durchgangs starten.
+
 ## 0.2.1
 
 - Haushalt & KCanG: Erwachsene im Haushalt, Pflanzenlimit (3 pro Person), Warnung beim Überschreiten, Lagergrenze.

@@ -15,6 +15,7 @@ const big = ref(null)
 const training = ref([])
 const showAllTraining = ref(false)
 const techNames = ref({})
+const germMethods = ref([])
 
 async function load() {
   const id = route.params.id
@@ -22,11 +23,13 @@ async function load() {
   logs.value = await api.get(`logs?plant_id=${id}`)
   training.value = s.value.phase.day ? await api.get(`plants/${id}/training`) : []
   if (!Object.keys(techNames.value).length) techNames.value = Object.fromEntries((await api.get('training')).map((t) => [t.key, t.name]))
-  form.value = { ...s.value.plant }
+  form.value = { ...s.value.plant, soaked_at: s.value.plant.soaked_at ? s.value.plant.soaked_at.slice(0, 16) : null }
+  if (!germMethods.value.length) germMethods.value = (await api.get('germination')).methods
 }
 async function save() {
   const f = form.value
-  const keys = ['name', 'pot_l', 'pot_height_cm', 'soaked_on', 'planted_on', 'sprouted_on', 'preflower_on', 'flip_on',
+  if (f.soaked_at && f.soaked_at.length === 16) f.soaked_at += ':00'
+  const keys = ['germ_method', 'soaked_at', 'name', 'pot_l', 'pot_height_cm', 'soaked_on', 'planted_on', 'sprouted_on', 'preflower_on', 'flip_on',
     'harvested_on', 'feed_factor', 'mg_deficiency_flag', 'notes', 'status']
   const body = Object.fromEntries(keys.map((k) => [k, f[k] === '' ? null : f[k]]))
   await api.patch(`plants/${s.value.plant.id}`, body)
@@ -83,6 +86,20 @@ onMounted(load)
       <p v-if="s.phase.auto_mapping_note" class="small muted" style="margin-top:8px">{{ s.phase.auto_mapping_note }}</p>
     </div>
 
+    <section v-if="s.germination" class="panel stack germ">
+      <div class="row between">
+        <h3>Keimung<template v-if="s.germination.method_name">: {{ s.germination.method_name }}</template></h3>
+        <span class="small muted" v-if="s.germination.elapsed">{{ s.germination.elapsed }}</span>
+      </div>
+      <p v-if="s.germination.hint">{{ s.germination.hint }}</p>
+      <p v-if="s.germination.next_hint" class="small muted">In etwa {{ fmt.n(s.germination.next_in_hours, 0) }} h: {{ s.germination.next_hint }}</p>
+      <div class="row">
+        <router-link class="btn" :to="s.germination.method_key ? { path: `/keimung/${s.germination.method_key}`, query: { plant: s.plant.id } } : { path: '/keimung', query: { plant: s.plant.id } }">
+          {{ s.germination.method_key ? 'Anleitung öffnen' : 'Keimmethode wählen' }}
+        </router-link>
+      </div>
+    </section>
+
     <div class="row">
       <button v-if="!s.plant.planted_on" class="primary" @click="setDate('planted_on', 'Gesetzt')">Heute gesetzt</button>
       <button v-else-if="!s.plant.sprouted_on" class="primary" @click="setDate('sprouted_on', 'Aufgelaufen')">Heute aufgelaufen</button>
@@ -92,6 +109,12 @@ onMounted(load)
 
     <form v-if="edit" class="panel stack" @submit.prevent="save">
       <label class="field"><span>Name</span><input v-model="form.name" /></label>
+      <div class="grid2">
+        <label class="field"><span>Keimmethode</span>
+          <select v-model="form.germ_method"><option :value="null">Keine Angabe</option><option v-for="g in germMethods" :key="g.key" :value="g.key">{{ g.name }}</option></select>
+        </label>
+        <label class="field"><span>Einweichen gestartet</span><input type="datetime-local" v-model="form.soaked_at" /></label>
+      </div>
       <div class="grid3">
         <label class="field"><span>Eingeweicht</span><input type="date" v-model="form.soaked_on" /></label>
         <label class="field"><span>Gesetzt</span><input type="date" v-model="form.planted_on" /></label>
@@ -185,6 +208,7 @@ onMounted(load)
 .day { font-size: 3.2rem; font-weight: 600; line-height: .9; color: var(--leaf); text-align: right; }
 .day small { display: block; font-size: .8rem; color: var(--muted); font-weight: 500; line-height: 1.4; }
 .mini { min-height: 34px; padding: 4px 10px; font-size: .875rem; }
+.germ { border-color: var(--leaf); }
 .trow { display: block; text-decoration: none; border-left: 3px solid var(--line); padding: 4px 0 6px 12px; }
 .trow.jetzt { border-color: var(--leaf); }
 .trow.warten { border-color: var(--amber); }

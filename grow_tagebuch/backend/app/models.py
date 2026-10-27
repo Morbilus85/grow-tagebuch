@@ -154,6 +154,8 @@ class Plant(SQLModel, table=True):
     name: str
     pot_l: Optional[float] = None
     pot_height_cm: int = 30
+    germ_method: Optional[str] = None  # Schlüssel aus germination_data
+    soaked_at: Optional[datetime] = None  # genauer Startzeitpunkt des Einweichens
     soaked_on: Optional[date] = None
     planted_on: Optional[date] = None
     sprouted_on: Optional[date] = None

@@ -80,6 +80,9 @@ onUnmounted(() => clearInterval(timer))
             <li v-for="m in s.space.messages" :key="m" :class="rating[s.space.status]">{{ m }}</li>
           </ul>
 
+          <p v-if="s.germination?.next_hint" class="small muted">In etwa {{ fmt.n(s.germination.next_in_hours, 0) }} h: {{ s.germination.next_hint }}</p>
+          <router-link v-if="s.germination && !s.germination.method_key" class="btn small" :to="{ path: '/keimung', query: { plant: s.plant.id } }">Keimmethode wählen</router-link>
+
           <div v-if="s.training_now?.length || s.training_wait" class="training">
             <span class="small muted">Training jetzt möglich:</span>
             <router-link v-for="t in s.training_now" :key="t.key" :to="{ path: `/training/${t.key}`, query: { plant: s.plant.id } }"

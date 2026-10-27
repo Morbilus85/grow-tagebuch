@@ -13,6 +13,7 @@ const waters = ref([])
 const schedules = ref([])
 const np = ref(null)
 const newStrain = ref(null)
+const germMethods = ref([])
 
 async function load() {
   const r = await api.get(`runs/${route.params.id}`)
@@ -20,11 +21,12 @@ async function load() {
   plants.value = r.plants
   ;[strains.value, soils.value, waters.value, schedules.value] = await Promise.all(
     [api.get('strains'), api.get('soils'), api.get('waters'), api.get('schedules')])
+  germMethods.value = (await api.get('germination')).methods
   resetNew()
 }
 function resetNew() {
-  np.value = { name: `Pflanze ${plants.value.length + 1}`, strain_id: strains.value[0]?.id, pot_l: 19, pot_height_cm: 30,
-    soaked_on: '2026-10-26', planted_on: today(), sprouted_on: null }
+  np.value = { name: `Pflanze ${plants.value.length + 1}`, strain_id: strains.value[0]?.id, pot_l: 20, germ_method: plants.value.at(-1)?.germ_method || null, pot_height_cm: 30,
+    soaked_on: plants.value.at(-1)?.soaked_on || today(), planted_on: plants.value.at(-1)?.planted_on || null, sprouted_on: null }
 }
 async function saveRun() {
   const r = run.value
@@ -78,6 +80,9 @@ onMounted(load)
           </div>
           <button type="button" @click="addStrain" :disabled="!newStrain.name">Sorte speichern</button>
         </div>
+        <label class="field"><span>Keimmethode</span>
+          <select v-model="np.germ_method"><option :value="null">Keine Angabe</option><option v-for="g in germMethods" :key="g.key" :value="g.key">{{ g.name }}</option></select>
+        </label>
         <div class="grid3">
           <label class="field"><span>Eingeweicht</span><input type="date" v-model="np.soaked_on" /></label>
           <label class="field"><span>Gesetzt</span><input type="date" v-model="np.planted_on" /></label>
