@@ -80,7 +80,7 @@ SENSORS = {
     "rh": "sensor.homegrow_probe_sensor_sonden_luftfeuchtigkeit",
     "vpd": "sensor.homegrow_probe_sensor_sonden_vpd",
     "light_level": "sensor.homegrow_port_2_aktuelle_leistung",
-    "light_on": "binary_sensor.homegrow_port_2_status",
+    "light_on": "binary_sensor.homegrow_port_2_zustand",
     "exhaust_level": "sensor.homegrow_port_1_aktuelle_leistung",
     "heater_switch": "switch.steckdose_growzelt_heizung",
     "heatmat_switch": "switch.steckdose_heizmatte",
