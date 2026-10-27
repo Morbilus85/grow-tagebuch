@@ -1,6 +1,6 @@
 # Grow-Tagebuch – Spezifikation
 
-Stand: 27.10.2026 · Version 0.1 (Entwurf zur Freigabe)
+Stand: 27.10.2026 · Version 0.2 (freigegeben, inkl. Self-Review)
 
 ## 1. Ziel
 
@@ -112,21 +112,24 @@ Reminder
 ### 5.3 Tagebuch
 - Schnell-Log (ein Knopf je Typ), Foto direkt von der Handykamera, mehrere Fotos pro Eintrag.
 - Zeitstrahl pro Pflanze: Fotos, Einträge und Klimakurve übereinander.
+- Jeder Eintrag lässt sich **bearbeiten und löschen**.
+- **Höhe und Lampenabstand** als eigener Messwert (siehe 5.10).
+- **Schädlings-Log**: Befund (z. B. Trauermücken, Spinnmilben, Thripse), Schweregrad, Foto, Gegenmaßnahme.
 
 ### 5.4 Gieß- und Düngeassistent (regelbasiert)
-Ablauf: Pflanze(n) wählen → Wassermenge eingeben → App erzeugt das Rezept → bestätigen → wird automatisch geloggt.
+Ablauf: Pflanze(n) wählen → Wassermenge **pro Pflanze** eingeben → App erzeugt **ein Kannen-Rezept für die Gesamtmenge** (bei unterschiedlichen Phasen getrennte Kannen) → bestätigen → wird für jede Pflanze automatisch geloggt.
 
 Berechnung:
 
 1. **Basis-Schema** nach Schema-Typ der Erde. Floragard Grow Mix Organic + Wurmhumus ist vorgedüngt → **BioBizz-All-Mix-Tabelle** als Basis.
-2. **Stufen-Zuordnung für Autos**: Woche 1–2 nach Keimung nur Wasser (+ optional Root-Juice laut Schema), danach Spalte „Wachstum“, ab Vorblüte Blüte W1. Die acht Blüte-Spalten werden auf die tatsächliche Blütedauer der Sorte gestreckt oder gestaucht; die letzte Woche vor Ernte ist nur Wasser.
+2. **Stufen-Zuordnung für Autos**: Woche 1–2 nach Keimung nur Wasser (+ optional Root-Juice laut Schema), danach Spalte „Wachstum“, ab Vorblüte Blüte W1. Die acht Blüte-Spalten werden auf die tatsächliche Blütedauer der Sorte gestreckt oder gestaucht; die letzte Woche vor Ernte ist nur Wasser. **Achtung: BioBizz veröffentlicht kein Auto-Schema. Diese Zuordnung ist eine eigene Annahme** und wird in der App als solche gekennzeichnet; nach dem ersten Run wird sie anhand der Logs überprüft.
 3. **Vorgedüngte Erde**: In den ersten `prefertilized_weeks` (+1 Woche bei ≥10 % Wurmhumus) keine Grunddünger (Bio-Grow/Bio-Bloom), danach Einstieg mit Stärkefaktor 0,5, Steigerung um 0,25 pro Woche bis 1,0, solange keine Warnzeichen geloggt sind.
 4. **Ersetzungen**: Fish-Mix → Bio-Grow; Alg-A-Mic und Microbes fehlen im Inventar → entfallen bzw. DiMikro nach Etikett als Bodenleben-Ersatz.
 5. **Stärkefaktor pro Pflanze**: Basisdosis × Faktor. Regeln senken ihn (Blattspitzen verbrannt, „Klauen“, sehr dunkles Grün → −25 %) oder erlauben Steigerung (Aufhellen unterer Blätter in Wachstum → +25 %, max. 1,0). Über 1,0 nur nach ausdrücklicher Bestätigung.
-6. **Wasserkorrektur**: Essen ist weiches Wasser (Ca 39 mg/l, Mg 7,6 mg/l). Laut BioBizz wird bei weichem Wasser CalMag ergänzt → CalMag wird ab Wachstum standardmäßig vorgeschlagen, Dosis laut Etikett, in der ersten Hälfte der Stufe mit halber Dosis.
+6. **Wasserkorrektur**: Essen ist weiches Wasser (Ca 39 mg/l, Mg 7,6 mg/l). Laut BioBizz wird bei weichem Wasser CalMag ergänzt. Calcium ist ausreichend, und vorgedüngte Erde plus Wurmhumus decken den Anfang ab → CalMag wird **ab Blüte W1** vorgeschlagen (zunächst halbe Etikettdosis) oder früher, sobald ein Mg-Mangel geloggt wird.
 7. **pH**: Ziel 6,2–6,8 (Erde). Bio-Down wird nicht pauschal dosiert, sondern aus deinen eigenen Messungen gelernt: Die App merkt sich „x ml Bio-Down pro 10 l bei Rezept y → pH z“ und schlägt beim nächsten Mal die gelernte Menge vor.
 8. **EC**: Leitungswasser-EC (0,47) wird abgezogen und gesondert angezeigt. Runoff-EC wird als Trend dargestellt; steigt er über mehrere Gießungen deutlich, gibt es einen Hinweis, aber keine automatische Reduktion.
-9. **Gießmenge**: Sämling nur im Ring um die Pflanze (0,1–0,3 l), danach nach Topfgewicht oder Erfahrungswert. Bei organischer Erde ist Runoff optional.
+9. **Gießmenge**: Sämling nur im Ring um die Pflanze (0,1–0,3 l), danach nach Topfgewicht oder Erfahrungswert. Bei organischer Erde ist Runoff optional. **Topfgewicht** (Kofferwaage) kann vor dem Gießen geloggt werden; die App lernt „nass“ und „gießbereit“ und zeigt, wie weit der Topf abgetrocknet ist.
 
 ### 5.5 Regeln für Zusätze (Warnungen und Sperren)
 
@@ -150,14 +153,30 @@ Berechnung:
 ### 5.7 Licht
 - Lichtplan pro Run (Autos Standard 20/4, editierbar), Stufe 1–10, Höhe.
 - Lichtzeiten und aktuelle Stufe werden aus Port 2 des Controllers gelesen.
-- Ziel-PPFD nach Phase (Sämling 200–300, Wachstum 400–600, Blüte 700–900 µmol/m²/s) und daraus DLI.
+- Ziel-PPFD nach Phase (Sämling 200–300, Wachstum 300–600, Blüte 600–900 µmol/m²/s) und daraus DLI.
+- **DLI als harte Grenze**: Bei 20/4 Licht ist die Tagesmenge der eigentliche Engpass. Die App berechnet den DLI aus Lichtplan und Kalibrierung und warnt bei Überschreitung (Richtwerte max.: Sämling 20 · Wachstum 40 · Blüte 50 mol/m²/Tag).
+- Kalibrierung vom 27.10.2026 (20 Messpunkte) ist hinterlegt. Randwerte liegen bei 53–67 % der Mitte → Töpfe mittig stellen und wöchentlich drehen.
 - AC Infinity veröffentlicht für die Ionframe EVO4 keine PPFD-Karte nach Höhe. Deshalb **Kalibrierung**: Du misst einmal (z. B. mit der App „Photone“ oder einem PAR-Meter) bei 2–3 Höhen/Dimmstufen, die App interpoliert. Ohne Kalibrierung gibt es nur vorsichtige Standardwerte.
 
-### 5.8 Erinnerungen (ntfy)
-- Gießen prüfen, Düngetag, nächste Phase/erwarteter Übergang, Dimmstufe erhöhen, Top-Dress fällig, Produkt fast leer, Fotodokumentation (z. B. jeden 3. Tag).
+### 5.8 Aufgaben und Erinnerungen (ntfy)
+- Gießen prüfen, Düngetag, nächste Phase/erwarteter Übergang, Lichtstufe erhöhen, Top-Dress fällig, Produkt fast leer, Fotodokumentation (z. B. jeden 3. Tag).
+- Wiederkehrend: **pH-Meter kalibrieren** (alle 14 Tage), **Gelbtafeln prüfen** (wöchentlich), **Töpfe drehen** (wöchentlich).
+- Aufgaben erscheinen auf der Heute-Ansicht; ntfy-Push optional.
+
+### 5.10 Höhe und Platz
+- Zelt 180 cm, Topf ca. 30 cm, Sorte bis ca. 120 cm → der Platz wird knapp.
+- Aus Pflanzenhöhe, Topfhöhe, Zelthöhe und Lampenaufhängung berechnet die App den möglichen Lampenabstand und warnt, wenn der empfohlene Abstand für die aktuelle Phase nicht mehr erreichbar ist (→ LST oder Stufe reduzieren).
+- LST-Hinweis ab Woche 3–4 für Autos; kein Toppen als Standard.
 
 ### 5.9 Seed-Daten bei Installation
 - Equipment aus der Bestellung, Erdprofil „Floragard Grow Mix Organic + 10–20 % Wurmhumus“, Wasserprofil „Essen Leitungswasser (Q4/2025)“, Inventar (siehe Anhang), BioBizz-Schema All-Mix und Light-Mix, Run „Strawberry Cough Auto – Herbst 2026“ mit Einweichen am 26.10.2026. Sorte: Zamnesia Seeds, Strawberry Fields × Haze × Ruderalis, ca. 10–11 Wochen Samen bis Ernte, bis ca. 120 cm. Lichtkalibrierung aus `docs/messungen/licht_ionframe_evo4.csv`.
+
+## 5.11 Lieferumfang Phase 1a (zuerst)
+
+Damit der laufende Run sofort dokumentiert werden kann, wird Phase 1 geteilt:
+
+- **1a**: Heute-Ansicht, Pflanzen und Run, Tagebuch mit Fotos (bearbeiten/löschen), Höhe/Lampenabstand, Gieß- und Düngeassistent mit Kannen-Rezept, Regeln für Zusätze, Klima aus HA mit Speicherung und Verlauf, Licht/DLI aus Kalibrierung, Aufgaben, Inventar und Stammdaten (einfach).
+- **1b**: ntfy-Push, Export, Schädlings-Statistik, Topfgewicht-Lernen, komfortable Stammdaten-Pflege, Equipment-Verwaltung im Detail.
 
 ## 6. Phase 2 – KI-Schicht (Claude API)
 
