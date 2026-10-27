@@ -100,7 +100,6 @@ Reminder
 
 ### 5.1 Stammdaten
 - Setups mit Equipment anlegen; vorbefüllt mit dem Zelt-Setup aus der AC-Infinity-Bestellung (Cloudlab 733, Ionframe EVO4, Cloudline Pro S6, Aktivkohlefilter, Cloudray S6, Controller AI+, 19-l-Stofftöpfe) plus Heizmatte und Zusatzheizung.
-- Zweites Setup „Hochbeet Garten“ (ca. 100 l, Ost/Nordost) als Vorlage.
 - Erdprofile, Wasserprofile, Sorten, Inventar.
 
 ### 5.2 Runs und Pflanzen

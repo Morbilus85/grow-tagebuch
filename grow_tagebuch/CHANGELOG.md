@@ -1,3 +1,7 @@
+## 0.1.3
+
+- Hochbeet-Setup entfernt; Setups lassen sich löschen.
+
 ## 0.1.2
 
 - Licht: Stufe live vom Controller, Anzeige „aus“ bei ausgeschalteter Lampe, Hinweis dass PPFD berechnet ist.

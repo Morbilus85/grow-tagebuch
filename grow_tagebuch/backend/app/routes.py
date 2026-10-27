@@ -393,6 +393,19 @@ def update_setup(sid: int, data: dict, session: Session = S):
     return s
 
 
+@api.delete("/setups/{sid}")
+def delete_setup(sid: int, session: Session = S):
+    s = _get(session, Setup, sid)
+    if session.exec(select(Run).where(Run.setup_id == sid)).first():
+        raise HTTPException(400, "Setup wird noch von einem Durchgang benutzt")
+    for model in (Equipment, SensorMapping, LightCalibration, ClimateSample):
+        for o in session.exec(select(model).where(model.setup_id == sid)).all():
+            session.delete(o)
+    session.delete(s)
+    session.commit()
+    return {"ok": True}
+
+
 @api.put("/setups/{sid}/sensors")
 def set_sensors(sid: int, data: dict[str, str], session: Session = S):
     for m in session.exec(select(SensorMapping).where(SensorMapping.setup_id == sid)).all():

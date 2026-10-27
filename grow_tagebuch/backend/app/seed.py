@@ -94,8 +94,7 @@ def seed(session: Session) -> bool:
         return False
 
     tent = Setup(name="Growzelt", kind="zelt", indoor=True, width_cm=90, depth_cm=90, height_cm=180, lamp_hang_cm=15)
-    bed = Setup(name="Hochbeet Garten", kind="hochbeet", indoor=False, notes="ca. 100 l, Ost/Nordost")
-    session.add_all([tent, bed])
+    session.add(tent)
     session.flush()
 
     session.add_all([
