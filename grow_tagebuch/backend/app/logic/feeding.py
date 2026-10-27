@@ -41,6 +41,10 @@ class Item:
     note: str = ""
 
 
+def de(x) -> str:
+    return f"{x:g}".replace(".", ",")
+
+
 def _round(x: Optional[float], step: float = 0.1) -> Optional[float]:
     if x is None:
         return None
@@ -136,11 +140,11 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
             if base_blocked:
                 skipped.append({"name": p.name, "reason": "Erde noch vorgedüngt"})
                 continue
-            add(key, dose * factor, "schema", f"Schema {dose} ml/l × {factor:.2f}")
+            add(key, dose * factor, "schema", f"Schema {de(dose)} ml/l × {de(factor)}")
         else:
             # Stimulatoren/Wurzel: Schemadosis, in der Vorgedüngt-Phase halbiert
             f2 = 0.5 if base_blocked and stage != "seedling" else 1.0
-            add(key, dose * f2, "schema", f"Schema {dose} ml/l" + (" × 0,5 (vorgedüngte Erde)" if f2 < 1 else ""))
+            add(key, dose * f2, "schema", f"Schema {de(dose)} ml/l" + (" × 0,5 (vorgedüngte Erde)" if f2 < 1 else ""))
 
     # CalMag: weiches Wasser, Mg knapp -> ab Blüte oder bei Mg-Mangel
     cm = products.get("biobizz_calmag")
@@ -164,6 +168,9 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
         app = ex.get("application", "giessen")
         bw = lead.bloom_week or 0
         blocked = None
+        if stage is None:
+            skipped.append({"name": p.name, "reason": "keine Zusätze in dieser Phase (vor dem Auflaufen bzw. nach der Ernte)"})
+            continue
         if app == "spray":
             if key == "neemoel" and (lead.preflower_confirmed_or_reached or lead.phase in ("bloom", "flush")):
                 blocked = "Neemöl-Spray ab Vorblüte gesperrt (setzt sich in den Blüten fest)."

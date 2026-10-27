@@ -4,7 +4,7 @@ from __future__ import annotations
 import io
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, get_args
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -52,12 +52,12 @@ def _apply(obj, data: dict, exclude=("id",)):
         if k in exclude or not hasattr(obj, k):
             continue
         field = type(obj).model_fields.get(k)
-        if v is not None and field is not None:
-            ann = str(field.annotation)
-            if "date" in ann and "datetime" not in ann and isinstance(v, str):
-                v = date.fromisoformat(v) if v else None
-            elif "datetime" in ann and isinstance(v, str):
+        if field is not None and isinstance(v, str):
+            types = set(get_args(field.annotation)) | {field.annotation}
+            if datetime in types:
                 v = datetime.fromisoformat(v) if v else None
+            elif date in types:
+                v = date.fromisoformat(v[:10]) if v else None
         setattr(obj, k, v)
     return obj
 
@@ -182,6 +182,11 @@ def list_logs(plant_id: Optional[int] = None, run_id: Optional[int] = None, limi
         q = q.where(LogEntry.run_id == run_id)
     rows = session.exec(q.order_by(LogEntry.ts.desc()).limit(limit)).all()
     return [_log_dict(session, l) for l in rows]
+
+
+@api.get("/logs/{lid}")
+def get_log(lid: int, session: Session = S):
+    return _log_dict(session, _get(session, LogEntry, lid))
 
 
 @api.post("/logs")
