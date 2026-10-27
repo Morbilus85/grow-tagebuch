@@ -157,7 +157,7 @@ Berechnung:
 - Gießen prüfen, Düngetag, nächste Phase/erwarteter Übergang, Dimmstufe erhöhen, Top-Dress fällig, Produkt fast leer, Fotodokumentation (z. B. jeden 3. Tag).
 
 ### 5.9 Seed-Daten bei Installation
-- Equipment aus der Bestellung, Erdprofil „Floragard Grow Mix Organic + 10–20 % Wurmhumus“, Wasserprofil „Essen Leitungswasser (Q4/2025)“, Inventar (siehe Anhang), BioBizz-Schema All-Mix und Light-Mix, Run „Strawberry Cough Auto – Herbst 2026“ mit Einweichen am 26.10.2026.
+- Equipment aus der Bestellung, Erdprofil „Floragard Grow Mix Organic + 10–20 % Wurmhumus“, Wasserprofil „Essen Leitungswasser (Q4/2025)“, Inventar (siehe Anhang), BioBizz-Schema All-Mix und Light-Mix, Run „Strawberry Cough Auto – Herbst 2026“ mit Einweichen am 26.10.2026. Sorte: Zamnesia Seeds, Strawberry Fields × Haze × Ruderalis, ca. 10–11 Wochen Samen bis Ernte, bis ca. 120 cm. Lichtkalibrierung aus `docs/messungen/licht_ionframe_evo4.csv`.
 
 ## 6. Phase 2 – KI-Schicht (Claude API)
 
@@ -203,9 +203,8 @@ Installation: HA → Einstellungen → Add-ons → Add-on-Store → ⋮ → Repo
 
 Geklärt: Port 2 = Lampe · Lichtplan Autos 20/4 · Kalibrierung per eigener Messung (Anleitung: `docs/LICHTMESSUNG.md`).
 
-1. **Strawberry Cough Auto** – welcher Breeder? Davon hängt die geschätzte Gesamtdauer ab.
-2. **Etikett-Dosierungen** für DiMikro, Rootmax, Ackerschachtelhalm-Konzentrat, Brennnesselpulver, Aloe-Vera-Puder, Neem Cake (Fotos folgen).
-3. **Messgerät** – PAR- oder Lux-Meter? (bestimmt die Umrechnung)
+1. **Etikett-Dosierungen** für DiMikro, Rootmax, Ackerschachtelhalm-Konzentrat, Brennnesselpulver, Aloe-Vera-Puder, Neem Cake (Fotos folgen).
+
 
 ## Anhang A – Inventar zum Start
 
