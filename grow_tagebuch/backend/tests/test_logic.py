@@ -193,3 +193,40 @@ def test_space_warning():
     assert r["days_until_tight"] == 11
     r = space.assess(180, 15, 30, [(date(2026, 12, 1), 115.0)], 45, True, 7, 120)
     assert r["status"] == "kritisch"
+
+
+# ---------------------------------------------------------------- Training
+
+from app.logic import training  # noqa: E402
+from app.training_data import TECHNIQUES  # noqa: E402
+
+TECH = {t["key"]: NS(**t) for t in TECHNIQUES}
+
+
+def ev(key, **kw):
+    base = dict(auto=True, phase="veg", day=20, bloom_week=None, nodes=5, last_stress=None)
+    base.update(kw)
+    return training.evaluate(TECH[key], today=date(2026, 11, 20), **base)
+
+
+def test_training_auto_rules():
+    assert ev("mainlining")["status"] == "nicht_empfohlen"
+    assert ev("lst")["status"] == "jetzt"
+    assert ev("lst", day=10, phase="seedling")["status"] == "bald"
+    assert ev("topping", nodes=3)["status"] == "bald"
+    assert ev("topping", day=30)["status"] == "vorbei"
+    assert ev("topping", auto=False, day=40)["status"] == "jetzt"
+    assert ev("schwazzing", auto=False, phase="bloom", bloom_week=1)["status"] == "jetzt"
+    assert ev("supercropping", phase="bloom", bloom_week=4, day=50)["status"] == "vorbei"
+
+
+def test_training_recovery_and_height():
+    r = ev("fim", last_stress=(date(2026, 11, 18), 7, "Toppen"))
+    assert r["status"] == "warten"
+    assert ev("lst", last_stress=(date(2026, 11, 18), 7, "Toppen"))["status"] == "jetzt"
+    assert ev("lst", space_status="knapp")["priority"]
+
+
+def test_training_rank():
+    res = training.rank([ev(k) for k in TECH])
+    assert res[0]["status"] == "jetzt" and res[-1]["status"] == "nicht_empfohlen"

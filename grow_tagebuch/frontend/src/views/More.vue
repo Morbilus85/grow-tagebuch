@@ -62,6 +62,7 @@ onMounted(load)
     <section class="grid2">
       <router-link to="/inventar" class="panel link"><h3>Inventar</h3><p class="small muted">Dünger, Zusätze, Dosierungen</p></router-link>
       <router-link to="/schema" class="panel link"><h3>Düngeschema</h3><p class="small muted">BioBizz All-Mix und Light-Mix</p></router-link>
+      <router-link to="/training" class="panel link"><h3>Training</h3><p class="small muted">Techniken mit Anleitung, für Autos und Photos</p></router-link>
     </section>
 
     <section class="stack">

@@ -20,7 +20,7 @@ export const LOG_TYPES = {
   feeding: 'Düngen',
   measurement: 'Höhe & Abstand',
   observation: 'Beobachtung',
-  training: 'Training (LST)',
+  training: 'Training',
   defoliation: 'Entlauben',
   top_dress: 'Top-Dress',
   foliar: 'Blattspray',
@@ -32,3 +32,11 @@ export const LOG_TYPES = {
 
 export const rating = { ok: 'ok', grenzwertig: 'warn', schlecht: 'bad', zu_hoch: 'bad', zu_niedrig: 'warn', knapp: 'warn', kritisch: 'bad' }
 export const today = () => new Date().toISOString().slice(0, 10)
+
+export const TRAINING = {
+  category: { lst: 'Low-Stress-Training', hst: 'High-Stress-Training', schnitt: 'Schnitt', methode: 'Anbaumethoden' },
+  stress: { sehr_niedrig: 'kaum Stress', niedrig: 'wenig Stress', mittel: 'mittlerer Stress', hoch: 'hoher Stress' },
+  suit: { empfohlen: 'geeignet', bedingt: 'bedingt', abraten: 'ungeeignet' },
+  suitClass: { empfohlen: 'ok', bedingt: 'warn', abraten: 'bad' },
+  status: { jetzt: 'ok', warten: 'warn', bald: '', vorbei: '', nicht_empfohlen: 'bad' },
+}

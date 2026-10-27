@@ -48,5 +48,5 @@ def assess(tent_height, lamp_hang, pot_height, heights: list[tuple[date, float]]
             res["messages"].append(f"Bei aktuellem Wachstum wird es in ca. {res['days_until_tight']} Tagen eng – LST jetzt beginnen.")
     if auto and week and 3 <= week <= 5 and max_strain_height and tent_height and max_strain_height > (tent_height - lamp_hang - pot_height - MIN_USEFUL_DISTANCE):
         res["messages"].append(f"Sorte wird bis ca. {max_strain_height} cm hoch – im Zelt ist Platz für ca. "
-                               f"{tent_height - lamp_hang - pot_height - MIN_USEFUL_DISTANCE} cm. LST einplanen (kein Toppen bei Autos).")
+                               f"{tent_height - lamp_hang - pot_height - MIN_USEFUL_DISTANCE} cm. Training zur Höhenkontrolle einplanen (LST, bei Bedarf Supercropping).")
     return res

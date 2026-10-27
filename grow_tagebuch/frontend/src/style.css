@@ -117,7 +117,7 @@ textarea { min-height: 88px; resize: vertical; }
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 input[type=checkbox] { accent-color: var(--leaf); width: 20px; height: 20px; min-height: 0; }
 
-.chip {
+.chip { text-decoration: none;
   display: inline-flex; align-items: center; gap: 6px;
   border-radius: 999px; padding: 2px 10px; font-size: .875rem;
   background: var(--sunken); color: var(--muted);

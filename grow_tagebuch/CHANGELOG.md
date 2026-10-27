@@ -1,3 +1,9 @@
+## 0.2.0
+
+- Trainingsdatenbank: 11 Techniken (LST, Blätter wegstecken, Toppen, FIM, Mainlining, Supercropping, SCROG, SOG, Lollipopping, Entlauben, Schwazzing) mit Anleitung, Eignung für Autos/Photos, Zeitfenster und Erholungszeiten.
+- Pro Pflanze: welche Technik jetzt passt, Warnung bei gestapeltem Stress.
+- Nodien als Messwert; eigene Techniken und Notizen.
+
 ## 0.1.3
 
 - Hochbeet-Setup entfernt; Setups lassen sich löschen.

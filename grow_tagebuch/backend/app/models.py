@@ -186,6 +186,9 @@ class LogEntry(SQLModel, table=True):
     # Messung
     height_cm: Optional[float] = None
     lamp_distance_cm: Optional[float] = None
+    nodes: Optional[int] = None  # Anzahl Nodien am Haupttrieb
+    # Training
+    technique_key: Optional[str] = None
     # Produkte: [{product_key, amount, unit, per_l, application}]
     products: list = Field(default_factory=list, sa_column=Column(JSON))
     # Schädlinge / Probleme
@@ -232,3 +235,27 @@ class Task(SQLModel, table=True):
 class Setting(SQLModel, table=True):
     key: str = Field(primary_key=True)
     value: dict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class TrainingTechnique(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    key: str = Field(index=True, unique=True)
+    name: str
+    aka: str = ""
+    category: str  # lst | hst | schnitt | methode
+    stress: str  # sehr_niedrig | niedrig | mittel | hoch
+    auto: str  # empfohlen | bedingt | abraten
+    photo: str  # empfohlen | bedingt | abraten
+    goal: str = ""
+    summary: str = ""
+    when: str = ""
+    auto_note: str = ""
+    steps: list = Field(default_factory=list, sa_column=Column(JSON))
+    mistakes: list = Field(default_factory=list, sa_column=Column(JSON))
+    tools: list = Field(default_factory=list, sa_column=Column(JSON))
+    combines_with: list = Field(default_factory=list, sa_column=Column(JSON))
+    window: dict = Field(default_factory=dict, sa_column=Column(JSON))  # Regeln für die Bewertung
+    recovery_days: int = 0
+    height_control: bool = False
+    builtin: bool = True
+    my_notes: str = ""

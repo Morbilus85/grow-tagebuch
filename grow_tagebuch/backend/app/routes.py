@@ -31,6 +31,7 @@ from .models import (
     SoilProfile,
     Strain,
     Task,
+    TrainingTechnique,
     WaterProfile,
     now,
 )
@@ -262,6 +263,8 @@ def get_photo(phid: int, thumb: bool = False, session: Session = S):
     path = PHOTO_DIR / (f"t_{p.filename}" if thumb else p.filename)
     if not path.exists():
         path = PHOTO_DIR / p.filename
+    if not path.exists():
+        raise HTTPException(404, "Fotodatei fehlt")
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "max-age=604800"})
 
 
@@ -559,12 +562,68 @@ def delete_task(tid: int, session: Session = S):
     return {"ok": True}
 
 
+# ------------------------------------------------------------------ Training
+
+@api.get("/training")
+def training_list(session: Session = S):
+    return session.exec(select(TrainingTechnique).order_by(TrainingTechnique.category, TrainingTechnique.name)).all()
+
+
+@api.get("/training/{key}")
+def training_get(key: str, session: Session = S):
+    t = session.exec(select(TrainingTechnique).where(TrainingTechnique.key == key)).first()
+    if not t:
+        raise HTTPException(404, "Technik nicht gefunden")
+    return t
+
+
+@api.patch("/training/{key}")
+def training_update(key: str, data: dict, session: Session = S):
+    t = training_get(key, session)
+    allowed = {"my_notes"} if t.builtin else set(TrainingTechnique.model_fields) - {"id", "key", "builtin"}
+    _apply(t, {k: v for k, v in data.items() if k in allowed})
+    session.add(t)
+    session.commit()
+    session.refresh(t)
+    return t
+
+
+@api.post("/training")
+def training_create(data: dict, session: Session = S):
+    key = data.get("key") or ("eigen_" + uuid.uuid4().hex[:8])
+    t = _apply(TrainingTechnique(key=key, name=data["name"], category=data.get("category", "lst"),
+                                 stress=data.get("stress", "niedrig"), auto=data.get("auto", "bedingt"),
+                                 photo=data.get("photo", "bedingt"), builtin=False), data, exclude=("id", "key", "builtin"))
+    session.add(t)
+    session.commit()
+    session.refresh(t)
+    return t
+
+
+@api.delete("/training/{key}")
+def training_delete(key: str, session: Session = S):
+    t = training_get(key, session)
+    if t.builtin:
+        raise HTTPException(400, "Eingebaute Techniken können nicht gelöscht werden")
+    session.delete(t)
+    session.commit()
+    return {"ok": True}
+
+
+@api.get("/plants/{pid}/training")
+def plant_training(pid: int, session: Session = S):
+    plant = _get(session, Plant, pid)
+    run = session.get(Run, plant.run_id)
+    st = services.plant_status(session, plant, run, session.get(Setup, run.setup_id))
+    return services.plant_training(session, plant, space_status=st["space"]["status"])
+
+
 # ------------------------------------------------------------------ Export
 
 @api.get("/export")
 def export(session: Session = S):
     data: dict[str, Any] = {}
     for model in (Setup, Equipment, SensorMapping, SoilProfile, WaterProfile, Product, FeedingSchedule, ScheduleEntry,
-                  Strain, LightCalibration, Run, Plant, LogEntry, Photo, Task):
+                  Strain, LightCalibration, Run, Plant, LogEntry, Photo, Task, TrainingTechnique):
         data[model.__tablename__] = [o.model_dump(mode="json") for o in session.exec(select(model)).all()]
     return data

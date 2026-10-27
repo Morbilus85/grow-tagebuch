@@ -89,6 +89,25 @@ SENSORS = {
 }
 
 
+def sync_training(session: Session) -> int:
+    """Eingebaute Techniken anlegen bzw. aktualisieren; eigene Notizen bleiben erhalten."""
+    from .models import TrainingTechnique
+    from .training_data import TECHNIQUES
+
+    n = 0
+    for data in TECHNIQUES:
+        t = session.exec(select(TrainingTechnique).where(TrainingTechnique.key == data["key"])).first()
+        if t is None:
+            t = TrainingTechnique(**data, builtin=True)
+            n += 1
+        else:
+            for k, v in data.items():
+                setattr(t, k, v)
+        session.add(t)
+    session.commit()
+    return n
+
+
 def seed(session: Session) -> bool:
     if session.exec(select(Setup)).first():
         return False

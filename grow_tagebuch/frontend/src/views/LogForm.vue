@@ -9,7 +9,8 @@ const router = useRouter()
 const editId = computed(() => route.params.id)
 const plants = ref([])
 const products = ref([])
-const f = ref({ type: route.query.type || 'observation', plant_id: Number(route.query.plant) || null, text: '', products: [] })
+const techniques = ref([])
+const f = ref({ type: route.query.type || 'observation', plant_id: Number(route.query.plant) || null, text: '', products: [], technique_key: route.query.technique || null })
 const files = ref([])
 const existingPhotos = ref([])
 const fileInput = ref(null)
@@ -23,6 +24,7 @@ async function load() {
   const t = await api.get('today')
   plants.value = t.runs.flatMap((r) => r.plants.map((s) => ({ ...s.plant, runName: r.run.name })))
   products.value = await api.get('products')
+  techniques.value = await api.get('training')
   if (editId.value) {
     const l = await api.get(`logs/${editId.value}`)
     f.value = { ...l, products: l.products || [] }
@@ -79,12 +81,19 @@ onMounted(load)
       </div>
       <label class="field"><span>Zeitpunkt</span><input type="datetime-local" v-model="ts" /></label>
 
-      <div v-if="has('measurement')" class="grid3">
+      <label v-if="has('training', 'defoliation')" class="field"><span>Technik</span>
+        <select v-model="f.technique_key">
+          <option :value="null">Keine Angabe</option>
+          <option v-for="t in techniques" :key="t.key" :value="t.key">{{ t.name }}</option>
+        </select>
+      </label>
+      <div v-if="has('measurement')" class="grid2">
         <label class="field"><span>Höhe Pflanze (cm)</span><input type="number" step="1" inputmode="numeric" v-model.number="f.height_cm" /></label>
+        <label class="field"><span>Nodien am Haupttrieb</span><input type="number" step="1" min="0" inputmode="numeric" v-model.number="f.nodes" /></label>
         <label class="field"><span>Abstand Lampe (cm)</span><input type="number" step="1" inputmode="numeric" v-model.number="f.lamp_distance_cm" /></label>
         <label class="field"><span>Topfgewicht (kg)</span><input type="number" step="0.1" inputmode="decimal" v-model.number="f.pot_weight_kg" /></label>
       </div>
-      <p v-if="has('measurement')" class="small muted">Höhe ab Erdoberfläche bis zur Spitze. Abstand von der Lampen-Unterkante bis zur Spitze.</p>
+      <p v-if="has('measurement')" class="small muted">Höhe ab Erdoberfläche bis zur Spitze. Abstand von der Lampen-Unterkante bis zur Spitze. Nodien: Stellen am Haupttrieb, an denen sich Blätter und Seitentriebe gegenüberstehen – die Keimblätter nicht mitzählen.</p>
 
       <template v-if="has('watering', 'feeding', 'top_dress', 'foliar')">
         <div class="grid3" v-if="has('watering', 'feeding')">

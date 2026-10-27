@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from .logic import feeding, light, phases, space
+from .logic import feeding, light, phases, space, training
 from .models import (
     FeedingSchedule,
     LightCalibration,
@@ -20,6 +20,7 @@ from .models import (
     SoilProfile,
     Strain,
     Task,
+    TrainingTechnique,
     WaterProfile,
 )
 
@@ -89,6 +90,32 @@ def recipes(session: Session, run: Run, volumes: dict[int, float], extras=None, 
     return out
 
 
+def latest_nodes(session: Session, plant_id: int) -> Optional[int]:
+    r = session.exec(select(LogEntry).where(LogEntry.plant_id == plant_id, LogEntry.nodes != None)  # noqa: E711
+                     .order_by(LogEntry.ts.desc())).first()
+    return r.nodes if r else None
+
+
+def plant_training(session: Session, plant: Plant, ph=None, space_status: str = "ok",
+                   today: Optional[date] = None) -> list[dict]:
+    today = today or date.today()
+    ph = ph or phase_of(session, plant, today)
+    strain = session.get(Strain, plant.strain_id) if plant.strain_id else None
+    techs = {t.key: t for t in session.exec(select(TrainingTechnique)).all()}
+    last_stress = None
+    for l in session.exec(select(LogEntry).where(LogEntry.plant_id == plant.id, LogEntry.technique_key != None)  # noqa: E711
+                          .order_by(LogEntry.ts.desc())).all():
+        t = techs.get(l.technique_key)
+        if t and t.recovery_days and t.stress in ("mittel", "hoch"):
+            last_stress = (l.ts.date(), t.recovery_days, t.name)
+            break
+    nodes = latest_nodes(session, plant.id)
+    res = [training.evaluate(t, auto=strain.auto if strain else True, phase=ph.phase, day=ph.day,
+                             bloom_week=ph.bloom_week, nodes=nodes, last_stress=last_stress,
+                             space_status=space_status, today=today) for t in techs.values()]
+    return training.rank(res)
+
+
 def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup], today: Optional[date] = None) -> dict:
     today = today or date.today()
     ph = phase_of(session, plant, today)
@@ -109,6 +136,8 @@ def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup
                       rec[0]["distance_cm"] if rec else None, strain.auto if strain else True, ph.week,
                       strain.max_height_cm if strain else None)
     actions = next_actions(plant, ph, last_water, today)
+    tr = plant_training(session, plant, ph, sp["status"], today) if ph.day else []
+    now_list = [t for t in tr if t["status"] == "jetzt" and t["suitability"] != "abraten"]
     return {
         "plant": plant.model_dump(),
         "strain": strain.model_dump() if strain else None,
@@ -118,6 +147,10 @@ def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup
         "last_photo_id": last_photo.id if last_photo else None,
         "space": sp,
         "actions": actions,
+        "nodes": latest_nodes(session, plant.id),
+        "training_now": [{"key": t["key"], "name": t["name"], "priority": t["priority"], "suitability": t["suitability"]}
+                         for t in now_list[:4]],
+        "training_wait": next(({"name": t["name"], "reason": t["reasons"][0]} for t in tr if t["status"] == "warten"), None),
     }
 
 
@@ -131,8 +164,6 @@ def next_actions(plant: Plant, ph: phases.PhaseInfo, last_water, today: date) ->
         a.append("Nur im Ring um den Keimling gießen (0,1–0,3 l).")
     if ph.phase == "veg" and not plant.preflower_on and ph.preflower_date and (ph.preflower_date - today).days <= 7:
         a.append("Auf Vorblüte achten (weiße Härchen an den Nodien) und bestätigen.")
-    if ph.phase == "veg" and ph.week and 3 <= ph.week <= 5:
-        a.append("LST: Haupttrieb sanft herunterbinden (bei Autos statt Toppen).")
     if ph.phase == "flush":
         a.append("Nur noch Wasser. Trichome prüfen.")
     if ph.phase == "harvest":

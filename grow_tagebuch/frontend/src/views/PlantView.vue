@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, photoUrl } from '../api.js'
-import { fmt, LOG_TYPES, rating, say, today } from '../util.js'
+import { fmt, LOG_TYPES, rating, say, today, TRAINING } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
 
 const route = useRoute()
@@ -12,11 +12,16 @@ const logs = ref([])
 const edit = ref(false)
 const form = ref({})
 const big = ref(null)
+const training = ref([])
+const showAllTraining = ref(false)
+const techNames = ref({})
 
 async function load() {
   const id = route.params.id
   s.value = await api.get(`plants/${id}`)
   logs.value = await api.get(`logs?plant_id=${id}`)
+  training.value = s.value.phase.day ? await api.get(`plants/${id}/training`) : []
+  if (!Object.keys(techNames.value).length) techNames.value = Object.fromEntries((await api.get('training')).map((t) => [t.key, t.name]))
   form.value = { ...s.value.plant }
 }
 async function save() {
@@ -52,7 +57,9 @@ function summary(l) {
   if (l.ph_in) parts.push(`pH ${fmt.n(l.ph_in)}`)
   if (l.ec_in) parts.push(`EC ${fmt.n(l.ec_in, 2)}`)
   if (l.ph_runoff) parts.push(`Runoff pH ${fmt.n(l.ph_runoff)}`)
+  if (l.technique_key) parts.push(techNames.value[l.technique_key] || l.technique_key)
   if (l.height_cm) parts.push(`Höhe ${fmt.n(l.height_cm, 0)} cm`)
+  if (l.nodes) parts.push(`${l.nodes} Nodien`)
   if (l.lamp_distance_cm) parts.push(`Lampe ${fmt.n(l.lamp_distance_cm, 0)} cm`)
   if (l.pot_weight_kg) parts.push(`Topf ${fmt.n(l.pot_weight_kg)} kg`)
   return parts.join(', ')
@@ -119,6 +126,25 @@ onMounted(load)
       <p v-for="m in s.space.messages" :key="m" class="note" :class="rating[s.space.status] || 'info'">{{ m }}</p>
     </div>
 
+    <section v-if="training.length" class="stack">
+      <div class="row between">
+        <h2>Training</h2>
+        <router-link to="/training" class="small muted">Alle Techniken</router-link>
+      </div>
+      <p v-if="!s.nodes" class="small muted">Tipp: Nodien unter „Höhe“ eintragen, dann wird der richtige Zeitpunkt genauer.</p>
+      <template v-for="t in training" :key="t.key">
+        <router-link v-if="showAllTraining || ['jetzt', 'warten'].includes(t.status)" :to="{ path: `/training/${t.key}`, query: { plant: s.plant.id } }"
+                     class="trow" :class="t.status">
+          <div class="row between">
+            <strong>{{ t.name }}</strong>
+            <span class="chip" :class="TRAINING.status[t.status]">{{ t.status_label }}</span>
+          </div>
+          <p v-for="r in t.reasons" :key="r" class="small muted">{{ r }}</p>
+        </router-link>
+      </template>
+      <button class="ghost" @click="showAllTraining = !showAllTraining">{{ showAllTraining ? 'Nur passende zeigen' : 'Alle Techniken mit Bewertung zeigen' }}</button>
+    </section>
+
     <section class="stack">
       <div class="row between">
         <h2>Tagebuch</h2>
@@ -159,6 +185,10 @@ onMounted(load)
 .day { font-size: 3.2rem; font-weight: 600; line-height: .9; color: var(--leaf); text-align: right; }
 .day small { display: block; font-size: .8rem; color: var(--muted); font-weight: 500; line-height: 1.4; }
 .mini { min-height: 34px; padding: 4px 10px; font-size: .875rem; }
+.trow { display: block; text-decoration: none; border-left: 3px solid var(--line); padding: 4px 0 6px 12px; }
+.trow.jetzt { border-color: var(--leaf); }
+.trow.warten { border-color: var(--amber); }
+.trow.vorbei, .trow.bald, .trow.nicht_empfohlen { opacity: .7; }
 .entry { border-left: 3px solid var(--line); padding: 2px 0 10px 12px; }
 .entry > * + * { margin-top: 6px; }
 .lightbox { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, .9); display: flex; align-items: center; justify-content: center; }

@@ -76,6 +76,13 @@ onUnmounted(() => clearInterval(timer))
             <li v-for="m in s.space.messages" :key="m" :class="rating[s.space.status]">{{ m }}</li>
           </ul>
 
+          <div v-if="s.training_now?.length || s.training_wait" class="training">
+            <span class="small muted">Training jetzt möglich:</span>
+            <router-link v-for="t in s.training_now" :key="t.key" :to="{ path: `/training/${t.key}`, query: { plant: s.plant.id } }"
+                         class="chip" :class="t.priority ? 'ok' : ''">{{ t.name }}</router-link>
+            <p v-if="s.training_wait" class="small" style="color:var(--amber)">{{ s.training_wait.reason }}</p>
+          </div>
+
           <p class="small muted" v-if="s.last_watering">
             Zuletzt gegossen {{ s.last_watering.days_ago === 0 ? 'heute' : s.last_watering.days_ago === 1 ? 'gestern' : `vor ${s.last_watering.days_ago} Tagen` }}
             ({{ fmt.n(s.last_watering.volume_l) }} l)
@@ -98,6 +105,8 @@ onUnmounted(() => clearInterval(timer))
 .day { font-size: 3.2rem; font-weight: 600; line-height: .9; min-width: 64px; color: var(--leaf); }
 .day small { display: block; font-size: .8rem; font-weight: 500; color: var(--muted); line-height: 1.4; }
 .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
+.training { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 8px; }
+.training .chip { text-decoration: none; }
 .todo { margin: 12px 0 8px; padding-left: 18px; }
 .todo li { margin: 4px 0; }
 .todo li.warn { color: var(--amber); }

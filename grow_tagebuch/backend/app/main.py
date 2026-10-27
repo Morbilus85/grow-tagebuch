@@ -15,7 +15,7 @@ from .db import DATA_DIR, engine, init_db
 from .logic import climate
 from .models import SensorMapping
 from .routes import api
-from .seed import seed
+from .seed import seed, sync_training
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("grow")
@@ -54,6 +54,7 @@ async def lifespan(app: FastAPI):
     with Session(engine) as s:
         if seed(s):
             log.info("Startdaten angelegt")
+        sync_training(s)
     sched = AsyncIOScheduler()
     interval = int(options().get("climate_interval_minutes", 10) or 10)
     sched.add_job(sample_job, "interval", minutes=interval, id="climate", next_run_time=None)
