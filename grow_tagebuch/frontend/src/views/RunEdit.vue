@@ -33,8 +33,8 @@ async function saveRun() {
   say('Durchgang gespeichert')
 }
 async function addPlant() {
-  await api.post('plants', { ...np.value, run_id: run.value.id })
-  say(`${np.value.name} angelegt`)
+  const p = await api.post('plants', { ...np.value, run_id: run.value.id })
+  say(p.warning || `${np.value.name} angelegt`)
   load()
 }
 async function addStrain() {

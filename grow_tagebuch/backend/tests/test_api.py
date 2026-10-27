@@ -45,3 +45,15 @@ def test_flow():
         t = c.get("/api/tasks").json()[0]
         assert c.post(f"/api/tasks/{t['id']}/done").json()["last_done_on"]
         assert "logentry" in c.get("/api/export").json()
+
+
+def test_household_limit():
+    with TestClient(app) as c:
+        assert c.put("/api/household", json={"adults": 1}).json()["plant_limit"] == 3
+        run = c.get("/api/runs").json()[0]
+        before = c.get("/api/household").json()["living_plants"]
+        last = None
+        for i in range(4 - before):
+            last = c.post("/api/plants", json={"run_id": run["id"], "name": f"L{i}", "planted_on": "2026-10-27"}).json()
+        assert "warning" in last
+        assert c.put("/api/household", json={"adults": 3}).json()["status"] == "ok"

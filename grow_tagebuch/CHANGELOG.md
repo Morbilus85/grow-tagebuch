@@ -1,3 +1,8 @@
+## 0.2.1
+
+- Haushalt & KCanG: Erwachsene im Haushalt, Pflanzenlimit (3 pro Person), Warnung beim Überschreiten, Lagergrenze.
+- SOG-Beschreibung an mehrere Erwachsene angepasst.
+
 ## 0.2.0
 
 - Trainingsdatenbank: 11 Techniken (LST, Blätter wegstecken, Toppen, FIM, Mainlining, Supercropping, SCROG, SOG, Lollipopping, Entlauben, Schwazzing) mit Anleitung, Eignung für Autos/Photos, Zeitfenster und Erholungszeiten.

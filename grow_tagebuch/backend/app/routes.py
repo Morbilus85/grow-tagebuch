@@ -102,7 +102,7 @@ async def today(session: Session = S):
             "light": la,
             "tasks": [t.model_dump() for t in services.tasks_due(session, run.id)],
         })
-    return {"date": date.today().isoformat(), "runs": out}
+    return {"date": date.today().isoformat(), "runs": out, "legal": services.legal_status(session)}
 
 
 # ------------------------------------------------------------------ Runs & Pflanzen
@@ -151,7 +151,27 @@ def create_plant(data: dict, session: Session = S):
     session.add(plant)
     session.commit()
     session.refresh(plant)
-    return plant
+    legal = services.legal_status(session)
+    out = plant.model_dump(mode="json")
+    if legal["status"] == "ueber":
+        out["warning"] = (f"Achtung: {legal['living_plants']} lebende Pflanzen, erlaubt sind {legal['plant_limit']} "
+                          f"({legal['adults']} Erwachsene × 3 nach KCanG).")
+    return out
+
+
+@api.get("/household")
+def get_household(session: Session = S):
+    return {**services.household(session), **services.legal_status(session)}
+
+
+@api.put("/household")
+def set_household(data: dict, session: Session = S):
+    from .models import Setting
+    s = session.get(Setting, "household") or Setting(key="household")
+    s.value = {"adults": max(int(data.get("adults") or 1), 1)}
+    session.add(s)
+    session.commit()
+    return get_household(session)
 
 
 @api.patch("/plants/{pid}")

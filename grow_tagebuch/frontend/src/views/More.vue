@@ -13,10 +13,12 @@ const newRun = ref(null)
 const ROLES = { temp: 'Temperatur', rh: 'Luftfeuchte', vpd: 'VPD', light_level: 'Lampe Stufe', light_on: 'Lampe an/aus',
   exhaust_level: 'Abluft Stufe', heater_switch: 'Heizung', heatmat_switch: 'Heizmatte', room_temp: 'Raum Temperatur', room_rh: 'Raum Feuchte' }
 const sensorEdit = ref({})
+const hh = ref(null)
 
 async function load() {
   ;[runs.value, soils.value, waters.value, tasks.value, setups.value] = await Promise.all(
     [api.get('runs'), api.get('soils'), api.get('waters'), api.get('tasks'), api.get('setups')])
+  hh.value = await api.get('household')
   for (const s of setups.value) sensorEdit.value[s.id] = Object.fromEntries(Object.keys(ROLES).map((r) => [r, s.sensors.find((x) => x.role === r)?.entity_id || '']))
 }
 async function addTask() {
@@ -29,6 +31,10 @@ async function delTask(t) { if (confirm(`„${t.title}“ löschen?`)) { await a
 async function saveSoil(s) { await api.patch(`soils/${s.id}`, { prefertilized_weeks: s.prefertilized_weeks, worm_humus_pct: s.worm_humus_pct, schedule_type: s.schedule_type }); say('Erde gespeichert') }
 async function saveWater(w) { await api.patch(`waters/${w.id}`, { ec: w.ec, ph: w.ph, ca_mg_l: w.ca_mg_l, mg_mg_l: w.mg_mg_l }); say('Wasser gespeichert') }
 async function saveSensors(id) { await api.put(`setups/${id}/sensors`, sensorEdit.value[id]); say('Sensoren gespeichert') }
+async function saveHousehold() {
+  hh.value = await api.put('household', { adults: hh.value.adults })
+  say('Haushalt gespeichert')
+}
 async function createRun() {
   const r = await api.post('runs', newRun.value)
   location.hash = `#/run/${r.id}`
@@ -78,6 +84,16 @@ onMounted(load)
         <button>Anlegen</button>
       </form>
       <p class="small muted">Intervall 0 = einmalig.</p>
+    </section>
+
+    <section class="stack" v-if="hh">
+      <h2>Haushalt & KCanG</h2>
+      <div class="panel stack">
+        <label class="field"><span>Erwachsene im Haushalt</span><input type="number" min="1" max="10" v-model.number="hh.adults" /></label>
+        <p>{{ hh.living_plants }} von {{ hh.plant_limit }} erlaubten lebenden Pflanzen. Zu Hause aufbewahren: bis {{ hh.home_storage_limit_g }} g getrocknet.</p>
+        <p class="small muted">3 Pflanzen und 50 g pro volljähriger Person am Wohnsitz; jede Pflanze sollte einer Person zuzuordnen sein. Gezählt werden gesetzte, nicht geerntete Pflanzen. Keine Rechtsberatung.</p>
+        <button @click="saveHousehold">Speichern</button>
+      </div>
     </section>
 
     <section class="stack">

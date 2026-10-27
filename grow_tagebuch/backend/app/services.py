@@ -175,6 +175,27 @@ def next_actions(plant: Plant, ph: phases.PhaseInfo, last_water, today: date) ->
     return a
 
 
+KCANG_PLANTS_PER_ADULT = 3
+KCANG_HOME_GRAMS_PER_ADULT = 50
+
+
+def household(session: Session) -> dict:
+    from .models import Setting
+    s = session.get(Setting, "household")
+    return {"adults": 1, **(s.value if s else {})}
+
+
+def legal_status(session: Session) -> dict:
+    """Lebende Pflanzen = gesetzt/aufgelaufen und nicht geerntet oder eingegangen."""
+    adults = max(int(household(session).get("adults") or 1), 1)
+    living = session.exec(select(Plant).where(Plant.status == "aktiv", Plant.harvested_on == None)).all()  # noqa: E711
+    count = sum(1 for p in living if p.planted_on or p.sprouted_on)
+    limit = adults * KCANG_PLANTS_PER_ADULT
+    status = "ok" if count < limit else "voll" if count == limit else "ueber"
+    return {"adults": adults, "living_plants": count, "plant_limit": limit, "status": status,
+            "home_storage_limit_g": adults * KCANG_HOME_GRAMS_PER_ADULT}
+
+
 def tasks_due(session: Session, run_id: Optional[int] = None, today: Optional[date] = None) -> list[Task]:
     today = today or date.today()
     q = select(Task).where(Task.active == True, Task.due_on <= today)  # noqa: E712

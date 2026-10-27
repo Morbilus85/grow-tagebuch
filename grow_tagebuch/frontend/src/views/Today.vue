@@ -38,6 +38,10 @@ onUnmounted(() => clearInterval(timer))
           </div>
           <router-link :to="`/run/${r.run.id}`" class="btn ghost small">Bearbeiten</router-link>
         </div>
+        <p v-if="data.legal && data.legal.status !== 'ok'" class="note" :class="data.legal.status === 'ueber' ? 'bad' : 'warn'">
+          {{ data.legal.living_plants }} von {{ data.legal.plant_limit }} erlaubten Pflanzen
+          ({{ data.legal.adults }} Erwachsene × 3 nach KCanG){{ data.legal.status === 'ueber' ? ' – Grenze überschritten.' : '.' }}
+        </p>
 
         <ClimateStrip :climate="r.climate" :light="r.light" />
         <p v-for="m in r.light.messages" :key="m" class="note warn small">{{ m }}</p>
