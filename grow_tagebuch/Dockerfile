@@ -8,7 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app/backend
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apk add --no-cache tzdata \
+    && pip install --no-cache-dir -r requirements.txt
 
 COPY backend/app ./app
 COPY frontend/dist /app/frontend/dist
