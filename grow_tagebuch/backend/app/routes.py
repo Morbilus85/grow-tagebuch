@@ -82,8 +82,16 @@ async def today(session: Session = S):
         live["temp_rating"] = climate.rate(live.get("temp"), t_rng)
         model = services.light_model(session, run.setup_id)
         lgroup = services.PHASE_GROUP.get(lead_phase or "seedling", "seedling")
-        la = light.assess(model, lgroup, run.light_level, run.lamp_distance_cm, run.light_hours)
+        live_level = live.get("light_level")
+        level = int(live_level) if live_level else run.light_level
+        la = light.assess(model, lgroup, level, run.lamp_distance_cm, run.light_hours)
         la["phase_group"] = lgroup
+        la["level"] = level
+        la["level_source"] = "controller" if live_level else "eingestellt"
+        la["distance_cm"] = run.lamp_distance_cm
+        la["lamp_on"] = live.get("light_on")
+        if live.get("light_on") is False:
+            la["messages"].insert(0, "Lampe ist laut Controller gerade aus. Werte gelten für die eingestellte Stufe, wenn sie an ist.")
         la["recommendations"] = model.recommend(lgroup, run.light_hours)
         out.append({
             "run": run.model_dump(),

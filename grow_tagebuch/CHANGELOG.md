@@ -1,3 +1,7 @@
+## 0.1.2
+
+- Licht: Stufe live vom Controller, Anzeige „aus“ bei ausgeschalteter Lampe, Hinweis dass PPFD berechnet ist.
+
 ## 0.1.1
 
 - Sensoren aus Home Assistant werden jetzt gelesen (Umgebung im Startskript).

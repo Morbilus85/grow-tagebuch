@@ -22,8 +22,9 @@ const cls = (r) => rating[r] || ''
     </router-link>
     <router-link to="/licht" class="cell">
       <span class="small muted">Licht</span>
-      <span class="num big led">{{ fmt.n(light?.ppfd, 0) }}<small>µmol</small></span>
-      <span class="chip" :class="cls(light?.status)" v-if="light?.dli">DLI {{ fmt.n(light.dli) }}</span>
+      <span class="num big led" :class="{ off: light?.lamp_on === false }">{{ light?.lamp_on === false ? 'aus' : fmt.n(light?.ppfd, 0) }}<small v-if="light?.lamp_on !== false">µmol</small></span>
+      <span class="small muted" v-if="light?.level">berechnet: Stufe {{ light.level }}, {{ light.distance_cm }} cm</span>
+      <span class="chip" :class="cls(light?.status)" v-if="light?.dli && light?.lamp_on !== false">DLI {{ fmt.n(light.dli) }}</span>
     </router-link>
   </div>
   <p v-if="climate && !climate.available" class="small muted" style="margin-top:8px">
@@ -38,6 +39,7 @@ const cls = (r) => rating[r] || ''
 .big { font-size: 1.6rem; font-weight: 600; line-height: 1.1; }
 .big small { font-size: .8rem; font-weight: 500; color: var(--muted); margin-left: 2px; }
 .led { color: var(--led); }
+.led.off { color: var(--muted); }
 .chip { align-self: flex-start; font-size: .75rem; padding: 0 8px; }
 @media (max-width: 420px) { .strip { grid-template-columns: repeat(2, 1fr); } }
 </style>
