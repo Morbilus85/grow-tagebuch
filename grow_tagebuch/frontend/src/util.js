@@ -12,6 +12,8 @@ export const fmt = {
   dateLong: (d) => (d ? new Date(d).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '–'),
   time: (d) => new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
   dt: (d) => new Date(d).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+  // Wassermengen: unter 1 l in ml, sonst Liter mit bis zu 2 Nachkommastellen
+  vol: (l) => (l === null || l === undefined ? '–' : l < 1 ? `${Math.round(l * 1000)} ml` : `${Number(l).toLocaleString('de-DE', { maximumFractionDigits: 2 })} l`),
   n: (v, dig = 1) => (v === null || v === undefined || Number.isNaN(v) ? '–' : Number(v).toLocaleString('de-DE', { maximumFractionDigits: dig, minimumFractionDigits: 0 })),
 }
 

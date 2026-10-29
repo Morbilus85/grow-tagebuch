@@ -56,7 +56,7 @@ async function removePlant() {
 }
 function summary(l) {
   const parts = []
-  if (l.volume_l) parts.push(`${fmt.n(l.volume_l)} l`)
+  if (l.volume_l) parts.push(fmt.vol(l.volume_l))
   if (l.ph_in) parts.push(`pH ${fmt.n(l.ph_in)}`)
   if (l.ec_in) parts.push(`EC ${fmt.n(l.ec_in, 2)}`)
   if (l.ph_runoff) parts.push(`Runoff pH ${fmt.n(l.ph_runoff)}`)

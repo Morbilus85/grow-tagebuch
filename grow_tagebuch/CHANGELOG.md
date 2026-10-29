@@ -1,3 +1,7 @@
+## 0.5.1
+
+- Kleine Wassermengen werden in ml angezeigt statt auf 0 l gerundet.
+
 ## 0.5.0
 
 - Schädlinge & Krankheiten: Befälle als Fälle mit Geltungsbereich (ganzes Zelt oder einzelne Pflanzen), Status, Befunden mit Fotos und Maßnahmen.

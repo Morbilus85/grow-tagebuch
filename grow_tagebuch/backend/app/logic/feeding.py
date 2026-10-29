@@ -102,7 +102,7 @@ def build_recipe(ctx_group: list[PlantCtx], volumes: dict[int, float], schedule:
     """
     today = today or date.today()
     lead = ctx_group[0]
-    total_l = round(sum(volumes.get(c.plant_id, 0) for c in ctx_group), 2)
+    total_l = round(sum(volumes.get(c.plant_id, 0) for c in ctx_group), 3)
     items: list[Item] = []
     skipped: list[dict] = []
     warnings: list[str] = []

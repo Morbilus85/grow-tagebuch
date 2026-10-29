@@ -100,7 +100,7 @@ onUnmounted(() => clearInterval(timer))
           </router-link>
           <p class="small muted" v-if="s.last_watering">
             Zuletzt gegossen {{ s.last_watering.days_ago === 0 ? 'heute' : s.last_watering.days_ago === 1 ? 'gestern' : `vor ${s.last_watering.days_ago} Tagen` }}
-            ({{ fmt.n(s.last_watering.volume_l) }} l)
+            ({{ fmt.vol(s.last_watering.volume_l) }})
           </p>
 
           <div class="row actions">

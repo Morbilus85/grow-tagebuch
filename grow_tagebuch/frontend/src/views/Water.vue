@@ -99,10 +99,10 @@ onMounted(load)
 
     <article v-for="(c, i) in cans" :key="i" class="panel stack can">
       <div class="row between">
-        <h2>Kanne {{ cans.length > 1 ? i + 1 : '' }}: {{ fmt.n(c.total_l) }} l</h2>
+        <h2>Kanne{{ cans.length > 1 ? ' ' + (i + 1) : '' }}: {{ fmt.vol(c.total_l) }}</h2>
         <span class="chip">{{ stageLabel(c.stage) }}</span>
       </div>
-      <p class="small muted">Für {{ c.plants.map((p) => `${p.name} (${fmt.n(p.volume_l)} l)`).join(', ') }}</p>
+      <p class="small muted">Für {{ c.plants.map((p) => `${p.name} (${fmt.vol(p.volume_l)})`).join(', ') }}</p>
 
       <p v-for="b in c.blocks" :key="b" class="note bad">{{ b }}</p>
       <p v-for="w in c.warnings" :key="w" class="note warn">{{ w }}</p>
