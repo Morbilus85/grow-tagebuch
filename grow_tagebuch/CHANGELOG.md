@@ -1,3 +1,7 @@
+## 0.5.2
+
+- Heute: Pflanzen-Kacheln nebeneinander auf breiten Bildschirmen (Tablet, PC), untereinander auf dem Handy.
+
 ## 0.5.1
 
 - Kleine Wassermengen werden in ml angezeigt statt auf 0 l gerundet.

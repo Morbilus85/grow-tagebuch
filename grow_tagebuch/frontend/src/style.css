@@ -64,6 +64,7 @@ p { margin: 0; }
 .num { font-family: var(--cond); font-variant-numeric: tabular-nums; }
 
 main.page { max-width: 760px; margin: 0 auto; padding: 16px 16px 104px; }
+main.page.wide { max-width: 1280px; }
 .stack > * + * { margin-top: 12px; }
 .stack-lg > * + * { margin-top: 24px; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

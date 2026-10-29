@@ -22,7 +22,7 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <template>
-  <main class="page stack-lg">
+  <main class="page wide stack-lg">
     <p v-if="err" class="note bad">Daten konnten nicht geladen werden: {{ err }}</p>
     <template v-if="data">
       <div v-if="!data.runs.length" class="panel empty stack">
@@ -65,6 +65,7 @@ onUnmounted(() => clearInterval(timer))
           <router-link :to="`/run/${r.run.id}`" class="btn primary">Pflanze anlegen</router-link>
         </div>
 
+        <div class="plants">
         <article v-for="s in r.plants" :key="s.plant.id" class="panel plant">
           <router-link :to="`/pflanze/${s.plant.id}`" class="head">
             <div class="day num" v-if="s.phase.day">
@@ -110,12 +111,16 @@ onUnmounted(() => clearInterval(timer))
             <router-link class="btn" :to="{ path: '/eintrag', query: { plant: s.plant.id } }">Eintrag</router-link>
           </div>
         </article>
+        </div>
       </section>
     </template>
   </main>
 </template>
 
 <style scoped>
+.plants { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.plant { display: flex; flex-direction: column; }
+.plant .actions { margin-top: auto; padding-top: 12px; }
 .plant .head { display: flex; gap: 14px; align-items: flex-start; text-decoration: none; }
 .day { font-size: 3.2rem; font-weight: 600; line-height: .9; min-width: 64px; color: var(--leaf); }
 .day small { display: block; font-size: .8rem; font-weight: 500; color: var(--muted); line-height: 1.4; }
