@@ -78,9 +78,9 @@ onMounted(load)
       <section v-if="m.calculator" class="panel stack">
         <h3>Mischung berechnen</h3>
         <div class="grid3">
-          <label class="field"><span>H₂O₂ laut Flasche (%)</span><input type="number" step="0.5" min="1" v-model.number="calc.stock" /></label>
+          <label class="field"><span>H₂O₂ laut Flasche (%)</span><input type="number" step="any" min="1" v-model.number="calc.stock" /></label>
           <label class="field"><span>Wasser (ml)</span><input type="number" step="10" min="10" v-model.number="calc.water" /></label>
-          <label class="field"><span>Ziel (%)</span><input type="number" step="0.05" :min="m.calculator.range_pct[0]" :max="m.calculator.range_pct[1]" v-model.number="calc.target" /></label>
+          <label class="field"><span>Ziel (%)</span><input type="number" step="any" :min="m.calculator.range_pct[0]" :max="m.calculator.range_pct[1]" v-model.number="calc.target" /></label>
         </div>
         <p class="result" v-if="ml !== null">{{ fmt.n(ml, 1) }} ml H₂O₂ ({{ fmt.n(calc.stock) }} %) in {{ fmt.n(calc.water, 0) }} ml Wasser</p>
         <p class="small muted">Üblich sind {{ fmt.n(m.calculator.range_pct[0]) }}–{{ fmt.n(m.calculator.range_pct[1]) }} % Endkonzentration. Für ein paar Samen reichen 50–100 ml Lösung. Konzentration auf der Flasche prüfen – 12 % ist viermal so stark wie 3 %.</p>

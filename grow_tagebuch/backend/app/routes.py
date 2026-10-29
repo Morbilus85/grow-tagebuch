@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Any, Optional, get_args
@@ -37,6 +38,13 @@ from .models import (
 )
 
 api = APIRouter(prefix="/api")
+log = logging.getLogger("grow.api")
+
+try:  # HEIC/HEIF-Fotos (iPhone, einige Android-Kameras)
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:  # pragma: no cover
+    pass
 S = Depends(get_session)
 MAX_PX = 2560
 
@@ -258,10 +266,13 @@ def delete_log(lid: int, session: Session = S):
 async def upload_photo(lid: int, file: UploadFile = File(...), session: Session = S):
     _get(session, LogEntry, lid)
     raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Leere Datei")
     try:
         img = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
-    except Exception:
-        raise HTTPException(400, "Bild konnte nicht gelesen werden")
+    except Exception as e:
+        log.warning("Foto %s (%s, %d Bytes) nicht lesbar: %s", file.filename, file.content_type, len(raw), e)
+        raise HTTPException(400, f"Bildformat nicht lesbar ({file.content_type or 'unbekannt'})")
     img.thumbnail((MAX_PX, MAX_PX))
     if img.mode not in ("RGB", "L"):
         img = img.convert("RGB")

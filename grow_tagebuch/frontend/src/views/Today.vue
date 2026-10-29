@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { api, photoUrl } from '../api.js'
-import { fmt, rating, say } from '../util.js'
+import { fmt, LOG_TYPES, rating, say } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
 import ClimateStrip from '../components/ClimateStrip.vue'
 
@@ -90,6 +90,9 @@ onUnmounted(() => clearInterval(timer))
             <p v-if="s.training_wait" class="small" style="color:var(--amber)">{{ s.training_wait.reason }}</p>
           </div>
 
+          <router-link v-if="s.last_log" :to="`/pflanze/${s.plant.id}`" class="small muted lastlog">
+            Letzter Eintrag: {{ LOG_TYPES[s.last_log.type] || 'Notiz' }}, {{ fmt.dt(s.last_log.ts) }}<template v-if="s.last_log.text"> – {{ s.last_log.text }}</template>
+          </router-link>
           <p class="small muted" v-if="s.last_watering">
             Zuletzt gegossen {{ s.last_watering.days_ago === 0 ? 'heute' : s.last_watering.days_ago === 1 ? 'gestern' : `vor ${s.last_watering.days_ago} Tagen` }}
             ({{ fmt.n(s.last_watering.volume_l) }} l)
@@ -114,6 +117,7 @@ onUnmounted(() => clearInterval(timer))
 .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
 .training { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 8px; }
 .training .chip { text-decoration: none; }
+.lastlog { display: block; margin: 4px 0; }
 .todo { margin: 12px 0 8px; padding-left: 18px; }
 .todo li { margin: 4px 0; }
 .todo li.warn { color: var(--amber); }

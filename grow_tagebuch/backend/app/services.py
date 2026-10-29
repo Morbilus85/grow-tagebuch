@@ -148,6 +148,7 @@ def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup
         "last_watering": {"ts": last_water.ts.isoformat(), "volume_l": last_water.volume_l, "type": last_water.type,
                           "days_ago": (today - last_water.ts.date()).days} if last_water else None,
         "last_photo_id": last_photo.id if last_photo else None,
+        "last_log": {"id": logs[0].id, "type": logs[0].type, "ts": logs[0].ts.isoformat(), "text": logs[0].text[:80]} if logs else None,
         "space": sp,
         "actions": actions,
         "nodes": latest_nodes(session, plant.id),

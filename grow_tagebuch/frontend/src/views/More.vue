@@ -117,10 +117,10 @@ onMounted(load)
       <div v-for="w in waters" :key="w.id" class="panel stack">
         <h3>{{ w.name }}</h3>
         <div class="grid2">
-          <label class="field"><span>EC</span><input type="number" step="0.01" v-model.number="w.ec" /></label>
-          <label class="field"><span>pH</span><input type="number" step="0.1" v-model.number="w.ph" /></label>
-          <label class="field"><span>Calcium (mg/l)</span><input type="number" step="0.1" v-model.number="w.ca_mg_l" /></label>
-          <label class="field"><span>Magnesium (mg/l)</span><input type="number" step="0.1" v-model.number="w.mg_mg_l" /></label>
+          <label class="field"><span>EC</span><input type="number" step="any" v-model.number="w.ec" /></label>
+          <label class="field"><span>pH</span><input type="number" step="any" v-model.number="w.ph" /></label>
+          <label class="field"><span>Calcium (mg/l)</span><input type="number" step="any" v-model.number="w.ca_mg_l" /></label>
+          <label class="field"><span>Magnesium (mg/l)</span><input type="number" step="any" v-model.number="w.mg_mg_l" /></label>
         </div>
         <p class="small muted">Härte {{ fmt.n(w.hardness_dh) }} °dH, Karbonathärte {{ fmt.n(w.carbonate_hardness_dh) }} °dH.
           <a v-if="w.source_url" :href="w.source_url" target="_blank" rel="noopener">Quelle</a></p>

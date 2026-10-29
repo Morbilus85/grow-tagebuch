@@ -89,7 +89,7 @@ onMounted(load)
           <label class="field"><span>Aufgelaufen</span><input type="date" v-model="np.sprouted_on" /></label>
         </div>
         <div class="grid2">
-          <label class="field"><span>Topf (l)</span><input type="number" step="0.5" v-model.number="np.pot_l" /></label>
+          <label class="field"><span>Topf (l)</span><input type="number" step="any" v-model.number="np.pot_l" /></label>
           <label class="field"><span>Topfhöhe (cm)</span><input type="number" v-model.number="np.pot_height_cm" /></label>
         </div>
         <button class="primary">Pflanze anlegen</button>

@@ -76,7 +76,7 @@ onMounted(load)
         <label class="row grow"><input type="checkbox" v-model="sel[s.plant.id].on" style="width:auto;min-height:auto" />
           <span>{{ s.plant.name }} <span class="small muted">{{ s.phase.label }}{{ s.phase.day ? ', Tag ' + s.phase.day : '' }}</span></span>
         </label>
-        <label class="liters"><input type="number" step="0.1" min="0" inputmode="decimal" v-model.number="sel[s.plant.id].liters" :disabled="!sel[s.plant.id].on" aria-label="Liter" /><span>l</span></label>
+        <label class="liters"><input type="number" step="any" min="0" inputmode="decimal" v-model.number="sel[s.plant.id].liters" :disabled="!sel[s.plant.id].on" aria-label="Liter" /><span>l</span></label>
       </div>
     </section>
     <p v-else class="muted">Keine Pflanzen im Durchgang.</p>
@@ -88,7 +88,7 @@ onMounted(load)
       </div>
       <div v-for="(e, i) in extras" :key="i" class="extra">
         <select v-model="e.product_key"><option v-for="p in extraOptions" :key="p.key" :value="p.key">{{ p.name }}</option></select>
-        <input type="number" step="0.1" min="0" inputmode="decimal" placeholder="pro Liter" v-model.number="e.per_l" />
+        <input type="number" step="any" min="0" inputmode="decimal" placeholder="pro Liter" v-model.number="e.per_l" />
         <select v-model="e.application"><option value="giessen">Gießen</option><option value="spray">Spray</option></select>
         <button class="ghost" @click="extras.splice(i, 1)" aria-label="Entfernen">✕</button>
       </div>
@@ -143,9 +143,9 @@ onMounted(load)
       </div>
 
       <div class="grid3">
-        <label class="field"><span>pH gemessen</span><input type="number" step="0.1" inputmode="decimal" v-model.number="meas[i].ph_in" /></label>
-        <label class="field"><span>EC gemessen</span><input type="number" step="0.01" inputmode="decimal" v-model.number="meas[i].ec_in" /></label>
-        <label class="field"><span>Bio-Down (ml)</span><input type="number" step="0.05" inputmode="decimal" v-model.number="meas[i].ph_down_ml_total" /></label>
+        <label class="field"><span>pH gemessen</span><input type="number" step="any" inputmode="decimal" v-model.number="meas[i].ph_in" /></label>
+        <label class="field"><span>EC gemessen</span><input type="number" step="any" inputmode="decimal" v-model.number="meas[i].ec_in" /></label>
+        <label class="field"><span>Bio-Down (ml)</span><input type="number" step="any" inputmode="decimal" v-model.number="meas[i].ph_down_ml_total" /></label>
       </div>
       <label class="field"><span>Notiz</span><input v-model="meas[i].text" /></label>
       <button class="primary" @click="confirmCan(i)">Gießen eintragen</button>

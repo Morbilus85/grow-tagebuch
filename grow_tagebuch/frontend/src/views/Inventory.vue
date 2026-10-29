@@ -42,8 +42,8 @@ onMounted(load)
         </div>
         <div v-if="open === p.id" class="stack" style="margin-top:12px">
           <div class="grid2">
-            <label class="field"><span>Dosis min ({{ p.unit }}/l)</span><input type="number" step="0.05" v-model.number="p.label_dose_min" /></label>
-            <label class="field"><span>Dosis max ({{ p.unit }}/l)</span><input type="number" step="0.05" v-model.number="p.label_dose_max" /></label>
+            <label class="field"><span>Dosis min ({{ p.unit }}/l)</span><input type="number" step="any" v-model.number="p.label_dose_min" /></label>
+            <label class="field"><span>Dosis max ({{ p.unit }}/l)</span><input type="number" step="any" v-model.number="p.label_dose_max" /></label>
           </div>
           <label class="field"><span>Notiz</span><input v-model="p.notes" /></label>
           <div class="row between">

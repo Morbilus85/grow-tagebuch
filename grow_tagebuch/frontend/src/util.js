@@ -40,3 +40,21 @@ export const TRAINING = {
   suitClass: { empfohlen: 'ok', bedingt: 'warn', abraten: 'bad' },
   status: { jetzt: 'ok', warten: 'warn', bald: '', vorbei: '', nicht_empfohlen: 'bad' },
 }
+
+// Fotos vor dem Hochladen verkleinern (spart Upload-Zeit, umgeht Größenlimits).
+// Kann der Browser das Format nicht lesen (z. B. HEIC), geht das Original hoch – der Server wandelt um.
+export async function shrinkImage(file, maxPx = 2560, quality = 0.85) {
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    const scale = Math.min(1, maxPx / Math.max(bmp.width, bmp.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bmp.width * scale)
+    canvas.height = Math.round(bmp.height * scale)
+    canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality))
+    if (!blob) return file
+    return new File([blob], (file.name || 'foto').replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
+  } catch {
+    return file
+  }
+}

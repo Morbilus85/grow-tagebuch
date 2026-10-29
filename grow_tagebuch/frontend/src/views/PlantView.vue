@@ -126,9 +126,9 @@ onMounted(load)
         <label class="field"><span>Geerntet</span><input type="date" v-model="form.harvested_on" /></label>
       </div>
       <div class="grid3">
-        <label class="field"><span>Topf (l)</span><input type="number" step="0.5" v-model.number="form.pot_l" /></label>
+        <label class="field"><span>Topf (l)</span><input type="number" step="any" v-model.number="form.pot_l" /></label>
         <label class="field"><span>Topfhöhe (cm)</span><input type="number" v-model.number="form.pot_height_cm" /></label>
-        <label class="field"><span>Düngefaktor</span><input type="number" step="0.05" min="0" max="1.5" v-model.number="form.feed_factor" /></label>
+        <label class="field"><span>Düngefaktor</span><input type="number" step="any" min="0" max="1.5" v-model.number="form.feed_factor" /></label>
       </div>
       <label class="row"><input type="checkbox" v-model="form.mg_deficiency_flag" style="width:auto;min-height:auto" />
         Magnesium-Mangel beobachtet (CalMag vorziehen)</label>

@@ -105,7 +105,7 @@ onMounted(load)
           <label class="field"><span>Punkt</span>
             <select v-model="cal.point"><option value="A">Mitte (A)</option><option v-for="p in ['B', 'C', 'D', 'E']" :key="p" :value="p">Rand {{ p }}</option></select>
           </label>
-          <label class="field"><span>PPFD</span><input type="number" step="0.1" v-model.number="cal.ppfd" required /></label>
+          <label class="field"><span>PPFD</span><input type="number" step="any" v-model.number="cal.ppfd" required /></label>
         </div>
         <button class="primary">Messpunkt speichern</button>
       </form>

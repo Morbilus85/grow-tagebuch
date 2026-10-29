@@ -1,3 +1,9 @@
+## 0.4.2
+
+- Fotos werden vor dem Hochladen verkleinert; HEIC wird unterstützt; Fehler beim Foto-Upload werden angezeigt, der Eintrag bleibt erhalten.
+- Kleine Mengen (z. B. 0,035 l) lassen sich überall eintragen.
+- Heute: letzter Tagebucheintrag pro Pflanze.
+
 ## 0.4.1
 
 - Living Soil: Anbauweise wählen (vegan oder vegan und tierisch).
