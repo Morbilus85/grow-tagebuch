@@ -34,7 +34,25 @@ export const LOG_TYPES = {
 }
 
 export const rating = { ok: 'ok', grenzwertig: 'warn', schlecht: 'bad', zu_hoch: 'bad', zu_niedrig: 'warn', knapp: 'warn', kritisch: 'bad' }
-export const today = () => new Date().toISOString().slice(0, 10)
+export const today = () => {
+  const d = new Date()
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
+// Nächster Meilenstein einer Pflanze als Ein-Klick-Button
+export function milestone(plant, phase, auto = true) {
+  if (plant.harvested_on || plant.status !== 'aktiv') return null
+  if (!plant.planted_on) return { field: 'planted_on', label: 'Gesetzt', confirm: 'heute als gesetzt markieren' }
+  if (!plant.sprouted_on) return { field: 'sprouted_on', label: 'Aufgelaufen', confirm: 'heute als aufgelaufen markieren (Tag 1)' }
+  if (auto && !plant.preflower_on && phase?.phase === 'veg' && (phase.day || 0) >= 14)
+    return { field: 'preflower_on', label: 'Vorblüte', confirm: 'Vorblüte heute bestätigen' }
+  return null
+}
+
+export async function setMilestone(api, plant, m) {
+  await api.patch(`plants/${plant.id}`, { [m.field]: today() })
+  await api.post('logs', { plant_id: plant.id, type: 'phase', text: `${m.label} am ${new Date().toLocaleDateString('de-DE')}` })
+}
 
 export const TRAINING = {
   category: { lst: 'Low-Stress-Training', hst: 'High-Stress-Training', schnitt: 'Schnitt', methode: 'Anbaumethoden' },

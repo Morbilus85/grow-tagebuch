@@ -1,3 +1,8 @@
+## 0.5.3
+
+- Heute: Ein-Klick-Button für den nächsten Meilenstein jeder Pflanze (Gesetzt, Aufgelaufen, Vorblüte) – übernimmt das heutige Datum und verschwindet danach.
+- Datum wird in lokaler Zeit gesetzt (vorher kurz nach Mitternacht ggf. noch der Vortag).
+
 ## 0.5.2
 
 - Heute: Pflanzen-Kacheln nebeneinander auf breiten Bildschirmen (Tablet, PC), untereinander auf dem Handy.

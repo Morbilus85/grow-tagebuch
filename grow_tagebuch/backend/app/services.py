@@ -228,7 +228,7 @@ def next_actions(plant: Plant, ph: phases.PhaseInfo, last_water, today: date) ->
         if g and g.get("hint"):
             a.append(g["hint"])
         if ph.phase == "keimung":
-            a.append("Sobald der Keimling sichtbar ist: „Aufgelaufen“ eintragen.")
+            a.append("Sobald der Keimling sichtbar ist: oben auf „Aufgelaufen“ tippen.")
     elif ph.phase == "seedling":
         a.append("Nur im Ring um den Keimling gießen (0,1–0,3 l).")
     if ph.phase == "veg" and not plant.preflower_on and ph.preflower_date and (ph.preflower_date - today).days <= 7:

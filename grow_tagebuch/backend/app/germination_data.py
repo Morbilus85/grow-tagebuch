@@ -14,7 +14,7 @@ GENERAL = [
 
 AFTER_PLANTING = [
     {"day": 0, "text": "Oberfläche feucht halten (Sprühflasche), Topf abdecken oder Luftfeuchte hoch halten. Lampe darf schon an sein, schwach."},
-    {"day": 2, "text": "Normalerweise kommt der Keimling jetzt durch (2–5 Tage). Täglich nachsehen und „Aufgelaufen“ eintragen."},
+    {"day": 2, "text": "Normalerweise kommt der Keimling jetzt durch (2–5 Tage). Täglich nachsehen."},
     {"day": 6, "text": "Noch nichts zu sehen? Ganz vorsichtig mit dem Finger nachsehen, ob der Keimling unter einer Kruste feststeckt."},
     {"day": 10, "text": "Nach 10 Tagen ohne Keimling ist der Samen wahrscheinlich nicht gekeimt. Neuen Samen ansetzen."},
 ]

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { api, photoUrl } from '../api.js'
-import { fmt, LOG_TYPES, PEST, rating, say } from '../util.js'
+import { fmt, LOG_TYPES, milestone, PEST, rating, say, setMilestone } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
 import ClimateStrip from '../components/ClimateStrip.vue'
 
@@ -15,6 +15,12 @@ async function load() {
 async function done(t) {
   await api.post(`tasks/${t.id}/done`)
   say(`„${t.title}“ erledigt`)
+  load()
+}
+async function mark(s, m) {
+  if (!confirm(`${s.plant.name} ${m.confirm}?`)) return
+  await setMilestone(api, s.plant, m)
+  say(`${s.plant.name}: ${m.label} eingetragen`)
   load()
 }
 onMounted(() => { load(); timer = setInterval(load, 60000) })
@@ -67,6 +73,7 @@ onUnmounted(() => clearInterval(timer))
 
         <div class="plants">
         <article v-for="s in r.plants" :key="s.plant.id" class="panel plant">
+          <div class="headrow">
           <router-link :to="`/pflanze/${s.plant.id}`" class="head">
             <div class="day num" v-if="s.phase.day">
               <small>Tag</small>{{ s.phase.day }}
@@ -78,6 +85,12 @@ onUnmounted(() => clearInterval(timer))
             </div>
             <img v-if="s.last_photo_id" :src="photoUrl(s.last_photo_id, true)" alt="" class="thumb" />
           </router-link>
+          <button v-if="milestone(s.plant, s.phase, s.strain?.auto !== false)" class="milestone"
+                  @click="mark(s, milestone(s.plant, s.phase, s.strain?.auto !== false))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            {{ milestone(s.plant, s.phase, s.strain?.auto !== false).label }}
+          </button>
+          </div>
 
           <PhaseBar v-if="s.phase.day" :phase="s.phase" :sprouted="s.plant.sprouted_on" />
 
@@ -121,6 +134,10 @@ onUnmounted(() => clearInterval(timer))
 .plants { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
 .plant { display: flex; flex-direction: column; }
 .plant .actions { margin-top: auto; padding-top: 12px; }
+.headrow { display: flex; gap: 10px; align-items: flex-start; }
+.headrow .head { flex: 1; min-width: 0; }
+.milestone { flex: none; border-color: var(--leaf); color: var(--leaf); font-weight: 600; padding: 8px 12px; }
+.milestone svg { width: 18px; height: 18px; }
 .plant .head { display: flex; gap: 14px; align-items: flex-start; text-decoration: none; }
 .day { font-size: 3.2rem; font-weight: 600; line-height: .9; min-width: 64px; color: var(--leaf); }
 .day small { display: block; font-size: .8rem; font-weight: 500; color: var(--muted); line-height: 1.4; }
