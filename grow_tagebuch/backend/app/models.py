@@ -168,6 +168,20 @@ class Plant(SQLModel, table=True):
     notes: str = ""
 
 
+class PestCase(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_id: int = Field(foreign_key="run.id", index=True)
+    pest_key: str
+    name: str
+    scope: str = "zelt"  # zelt | pflanzen
+    plant_ids: list = Field(default_factory=list, sa_column=Column(JSON))
+    status: str = "offen"  # offen | behandlung | erledigt
+    severity: int = 1  # 1 leicht, 2 mittel, 3 stark
+    started_on: date
+    closed_on: Optional[date] = None
+    notes: str = ""
+
+
 class LogEntry(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     plant_id: Optional[int] = Field(default=None, foreign_key="plant.id", index=True)
@@ -195,6 +209,7 @@ class LogEntry(SQLModel, table=True):
     products: list = Field(default_factory=list, sa_column=Column(JSON))
     # Schädlinge / Probleme
     severity: Optional[int] = None  # 1-3
+    case_id: Optional[int] = Field(default=None, foreign_key="pestcase.id", index=True)
 
 
 class Photo(SQLModel, table=True):
@@ -241,6 +256,7 @@ class Task(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     run_id: Optional[int] = Field(default=None, foreign_key="run.id")
     batch_id: Optional[int] = Field(default=None, foreign_key="soilbatch.id")
+    case_id: Optional[int] = Field(default=None, foreign_key="pestcase.id")
     title: str
     interval_days: Optional[int] = None  # None = einmalig
     due_on: date

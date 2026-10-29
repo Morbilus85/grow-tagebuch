@@ -119,6 +119,35 @@ def plant_training(session: Session, plant: Plant, ph=None, space_status: str = 
     return training.rank(res)
 
 
+def open_cases(session: Session, run_id: int, plant_id: Optional[int] = None) -> list[dict]:
+    from .models import PestCase
+    rows = session.exec(select(PestCase).where(PestCase.run_id == run_id, PestCase.status != "erledigt")
+                        .order_by(PestCase.severity.desc(), PestCase.started_on)).all()
+    out = []
+    for c in rows:
+        if plant_id and c.scope == "pflanzen" and plant_id not in (c.plant_ids or []):
+            continue
+        nxt = session.exec(select(Task).where(Task.case_id == c.id, Task.active == True)  # noqa: E712
+                           .order_by(Task.due_on)).first()
+        out.append({"id": c.id, "name": c.name, "pest_key": c.pest_key, "scope": c.scope, "plant_ids": c.plant_ids,
+                    "status": c.status, "severity": c.severity, "started_on": c.started_on.isoformat(),
+                    "next_task": {"title": nxt.title, "due_on": nxt.due_on.isoformat()} if nxt else None})
+    return out
+
+
+def case_phase(session: Session, case) -> tuple[str, Optional[int]]:
+    """Fortgeschrittenste Phase der betroffenen Pflanzen – danach richten sich die erlaubten Mittel."""
+    from .logic.pests import PHASE_ORDER
+    q = select(Plant).where(Plant.run_id == case.run_id, Plant.status == "aktiv")
+    plants = [p for p in session.exec(q).all() if case.scope == "zelt" or p.id in (case.plant_ids or [])]
+    best = ("seedling", None)
+    for p in plants:
+        ph = phase_of(session, p)
+        if PHASE_ORDER.get(ph.phase, 0) > PHASE_ORDER.get(best[0], 0) or (ph.phase == best[0] == "bloom" and (ph.bloom_week or 0) > (best[1] or 0)):
+            best = (ph.phase, ph.bloom_week)
+    return best
+
+
 def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup], today: Optional[date] = None) -> dict:
     today = today or date.today()
     ph = phase_of(session, plant, today)
@@ -152,6 +181,7 @@ def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup
         "space": sp,
         "actions": actions,
         "nodes": latest_nodes(session, plant.id),
+        "cases": open_cases(session, run.id, plant.id),
         "germination": germination(plant),
         "training_now": [{"key": t["key"], "name": t["name"], "priority": t["priority"], "suitability": t["suitability"]}
                          for t in now_list[:4]],

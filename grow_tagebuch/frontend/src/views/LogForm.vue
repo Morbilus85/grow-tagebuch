@@ -85,7 +85,7 @@ onMounted(load)
           </select>
         </label>
         <label class="field"><span>Art</span>
-          <select v-model="f.type"><option v-for="(l, k) in LOG_TYPES" :key="k" :value="k">{{ l }}</option></select>
+          <select v-model="f.type"><option v-for="(l, k) in LOG_TYPES" :key="k" :value="k" v-show="!['pest', 'treatment'].includes(k) || f.type === k">{{ l }}</option></select>
         </label>
       </div>
       <label class="field"><span>Zeitpunkt</span><input type="datetime-local" v-model="ts" /></label>
@@ -129,6 +129,7 @@ onMounted(load)
       <label v-if="has('problem', 'pest')" class="field"><span>Schweregrad</span>
         <select v-model.number="f.severity"><option :value="1">leicht</option><option :value="2">mittel</option><option :value="3">stark</option></select>
       </label>
+      <p v-if="!editId" class="small muted">Schädlinge oder Krankheiten? <router-link :to="{ path: '/schaedlinge', query: { neu: 1, plant: f.plant_id } }">Als Befall melden</router-link> – dann gilt er fürs ganze Zelt oder ausgewählte Pflanzen und hat einen eigenen Verlauf.</p>
       <p v-if="has('pest')" class="small muted">Was hast du gefunden (z. B. Trauermücken auf der Gelbtafel, Gespinste, Fraßspuren)? Ein Foto hilft später bei der Auswertung.</p>
 
       <label class="field"><span>Notiz</span><textarea v-model="f.text"></textarea></label>

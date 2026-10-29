@@ -285,3 +285,14 @@ def test_ls_vegan_mode():
         living_soil.calculate("classic_diy", 60, vegan=True)
     assert any(t["key"] == "topdress_bluete" for t in living_soil.teas_for_phase("bloom"))
     assert not any(t["key"] == "topdress_bluete" for t in living_soil.teas_for_phase("bloom", vegan=True))
+
+
+def test_pest_treatment_phases():
+    from app.logic import pests
+    neem = next(t for t in pests.PEST["spinnmilben"]["treatments"] if t["key"] == "neemoel_spray")
+    assert pests.evaluate(neem, "veg", None)["allowed"]
+    assert not pests.evaluate(neem, "bloom", 1)["allowed"]
+    kali = next(t for t in pests.PEST["spinnmilben"]["treatments"] if t["key"] == "kaliseife")
+    assert pests.evaluate(kali, "bloom", 2)["allowed"] and not pests.evaluate(kali, "bloom", 3)["allowed"]
+    nem = pests.PEST["trauermuecken"]["treatments"][0]
+    assert pests.evaluate(nem, "keimung", None)["allowed"]

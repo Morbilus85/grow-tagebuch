@@ -25,7 +25,8 @@ export const LOG_TYPES = {
   top_dress: 'Top-Dress',
   foliar: 'Blattspray',
   problem: 'Problem',
-  pest: 'Schädlinge',
+  pest: 'Befund',
+  treatment: 'Maßnahme',
   note: 'Notiz',
   harvest: 'Ernte',
 }
@@ -57,4 +58,12 @@ export async function shrinkImage(file, maxPx = 2560, quality = 0.85) {
   } catch {
     return file
   }
+}
+
+export const PEST = {
+  status: { offen: 'offen', behandlung: 'in Behandlung', erledigt: 'erledigt' },
+  statusClass: { offen: 'bad', behandlung: 'warn', erledigt: 'ok' },
+  severity: { 1: 'leicht', 2: 'mittel', 3: 'stark' },
+  scope: (c, plants = []) => c.scope === 'zelt' ? 'ganzes Zelt'
+    : (c.plant_ids || []).map((id) => plants.find((p) => p.id === id)?.name || `Pflanze ${id}`).join(', ') || 'einzelne Pflanzen',
 }

@@ -109,6 +109,7 @@ async def today(session: Session = S):
             "climate": live,
             "light": la,
             "tasks": [t.model_dump() for t in services.tasks_due(session, run.id)],
+            "cases": services.open_cases(session, run.id),
         })
     return {"date": date.today().isoformat(), "runs": out, "legal": services.legal_status(session)}
 
@@ -592,6 +593,147 @@ def delete_task(tid: int, session: Session = S):
     session.delete(_get(session, Task, tid))
     session.commit()
     return {"ok": True}
+
+
+# ------------------------------------------------------------------ Schädlinge
+
+@api.get("/pests/catalog")
+def pest_catalog():
+    from .pest_data import CATEGORY_LABEL, PESTS
+    return {"pests": PESTS, "categories": CATEGORY_LABEL}
+
+
+def _case_dict(session: Session, c) -> dict:
+    from .logic import pests
+    p = pests.PEST.get(c.pest_key, pests.PEST["sonstiges"])
+    phase, bw = services.case_phase(session, c)
+    logs = session.exec(select(LogEntry).where(LogEntry.case_id == c.id).order_by(LogEntry.ts.desc())).all()
+    tasks = session.exec(select(Task).where(Task.case_id == c.id, Task.active == True).order_by(Task.due_on)).all()  # noqa: E712
+    plants = session.exec(select(Plant).where(Plant.run_id == c.run_id)).all()
+    return {**c.model_dump(mode="json"), "pest": {k: p[k] for k in ("key", "name", "category", "signs", "causes", "prevention")},
+            "phase": phase, "bloom_week": bw,
+            "treatments": [pests.evaluate(t, phase, bw) for t in p["treatments"]],
+            "logs": [_log_dict(session, l) for l in logs], "tasks": [t.model_dump(mode="json") for t in tasks],
+            "plants": [{"id": pl.id, "name": pl.name} for pl in plants]}
+
+
+@api.get("/pests/cases")
+def pest_cases(run_id: Optional[int] = None, session: Session = S):
+    from .models import PestCase
+    q = select(PestCase)
+    if run_id:
+        q = q.where(PestCase.run_id == run_id)
+    rows = session.exec(q.order_by(PestCase.status == "erledigt", PestCase.started_on.desc())).all()
+    return [{**c.model_dump(mode="json"), "open_tasks": len(session.exec(select(Task).where(Task.case_id == c.id, Task.active == True)).all())}  # noqa: E712
+            for c in rows]
+
+
+@api.get("/pests/cases/{cid}")
+def pest_case(cid: int, session: Session = S):
+    from .models import PestCase
+    return _case_dict(session, _get(session, PestCase, cid))
+
+
+@api.post("/pests/cases")
+def pest_case_create(data: dict, session: Session = S):
+    from .logic import pests
+    from .models import PestCase
+    pest = pests.PEST.get(data.get("pest_key"), pests.PEST["sonstiges"])
+    scope = data.get("scope") or ("zelt" if pest["default_scope"] == "zelt" else "pflanzen")
+    c = PestCase(run_id=data["run_id"], pest_key=pest["key"], name=data.get("name") or pest["name"], scope=scope,
+                 plant_ids=[int(x) for x in data.get("plant_ids") or []] if scope == "pflanzen" else [],
+                 status=data.get("status") or "offen", severity=int(data.get("severity") or 1),
+                 started_on=date.fromisoformat(data.get("started_on") or date.today().isoformat()), notes=data.get("notes", ""))
+    session.add(c)
+    session.commit()
+    session.refresh(c)
+    if data.get("attach_log_id"):
+        l = _get(session, LogEntry, int(data["attach_log_id"]))
+        l.case_id = c.id
+        if scope == "zelt":
+            l.plant_id = None
+        session.add(l)
+    elif data.get("text") or data.get("with_finding", True):
+        session.add(LogEntry(run_id=c.run_id, plant_id=c.plant_ids[0] if len(c.plant_ids) == 1 else None, case_id=c.id,
+                             type="pest", text=data.get("text") or f"{c.name} festgestellt", severity=c.severity))
+    session.commit()
+    return _case_dict(session, c)
+
+
+@api.patch("/pests/cases/{cid}")
+def pest_case_update(cid: int, data: dict, session: Session = S):
+    from .models import PestCase
+    c = _get(session, PestCase, cid)
+    _apply(c, {k: v for k, v in data.items() if k in ("status", "scope", "plant_ids", "severity", "notes", "name")})
+    if c.scope == "zelt":
+        c.plant_ids = []
+    if c.status == "erledigt":
+        c.closed_on = c.closed_on or date.today()
+        for t in session.exec(select(Task).where(Task.case_id == cid, Task.active == True)).all():  # noqa: E712
+            t.active = False
+            session.add(t)
+    else:
+        c.closed_on = None
+    session.add(c)
+    session.commit()
+    return _case_dict(session, c)
+
+
+@api.delete("/pests/cases/{cid}")
+def pest_case_delete(cid: int, session: Session = S):
+    from .models import PestCase
+    c = _get(session, PestCase, cid)
+    for t in session.exec(select(Task).where(Task.case_id == cid)).all():
+        session.delete(t)
+    for l in session.exec(select(LogEntry).where(LogEntry.case_id == cid)).all():
+        _delete_log(session, l)
+    session.delete(c)
+    session.commit()
+    return {"ok": True}
+
+
+@api.post("/pests/cases/{cid}/finding")
+def pest_finding(cid: int, data: dict, session: Session = S):
+    from .models import PestCase
+    c = _get(session, PestCase, cid)
+    if data.get("severity"):
+        c.severity = int(data["severity"])
+        session.add(c)
+    l = LogEntry(run_id=c.run_id, plant_id=c.plant_ids[0] if len(c.plant_ids or []) == 1 else None, case_id=c.id,
+                 type="pest", text=data.get("text", ""), severity=c.severity)
+    session.add(l)
+    session.commit()
+    session.refresh(l)
+    return _log_dict(session, l)
+
+
+@api.post("/pests/cases/{cid}/treatment")
+def pest_treatment(cid: int, data: dict, session: Session = S):
+    from .logic import pests
+    from .models import PestCase
+    c = _get(session, PestCase, cid)
+    pest = pests.PEST.get(c.pest_key, pests.PEST["sonstiges"])
+    tr = next((t for t in pest["treatments"] if t["key"] == data.get("treatment_key")), None)
+    name = tr["name"] if tr else (data.get("name") or "Maßnahme")
+    day = date.fromisoformat(data.get("date") or date.today().isoformat())
+    l = LogEntry(run_id=c.run_id, plant_id=c.plant_ids[0] if len(c.plant_ids or []) == 1 else None, case_id=c.id,
+                 type="treatment", ts=datetime.combine(day, datetime.now().time().replace(microsecond=0)),
+                 text=f"{name}" + (f": {data['text']}" if data.get("text") else ""), tags=[tr["key"]] if tr else [])
+    session.add(l)
+    created = []
+    if tr and tr.get("repeat") and data.get("plan_repeats", True):
+        rep = tr["repeat"]
+        for i in range(1, rep["times"]):
+            t = Task(run_id=c.run_id, case_id=c.id, title=f"{c.name}: {name} – {i + 1}. Anwendung",
+                     due_on=day + timedelta(days=rep["interval_days"] * i))
+            session.add(t)
+            created.append(t)
+    if c.status == "offen":
+        c.status = "behandlung"
+        session.add(c)
+    session.commit()
+    session.refresh(l)
+    return {"log": _log_dict(session, l), "follow_ups": [t.due_on.isoformat() for t in created]}
 
 
 # ------------------------------------------------------------------ Living Soil

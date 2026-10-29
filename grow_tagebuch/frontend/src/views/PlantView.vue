@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, photoUrl } from '../api.js'
-import { fmt, LOG_TYPES, rating, say, today, TRAINING } from '../util.js'
+import { fmt, LOG_TYPES, PEST, rating, say, today, TRAINING } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
 
 const route = useRoute()
@@ -85,6 +85,11 @@ onMounted(load)
       <PhaseBar v-if="s.phase.day" :phase="s.phase" :sprouted="s.plant.sprouted_on" />
       <p v-if="s.phase.auto_mapping_note" class="small muted" style="margin-top:8px">{{ s.phase.auto_mapping_note }}</p>
     </div>
+
+    <router-link v-for="c in s.cases" :key="c.id" :to="`/schaedlinge/${c.id}`" class="note casenote" :class="PEST.statusClass[c.status]">
+      <strong>{{ c.name }}</strong> – {{ c.scope === 'zelt' ? 'betrifft das ganze Zelt' : 'betrifft diese Pflanze' }}, {{ PEST.status[c.status] }}
+    </router-link>
+    <router-link :to="{ path: '/schaedlinge', query: { neu: 1, plant: s.plant.id } }" class="small muted">Befall melden</router-link>
 
     <section v-if="s.germination" class="panel stack germ">
       <div class="row between">
@@ -208,6 +213,7 @@ onMounted(load)
 .day { font-size: 3.2rem; font-weight: 600; line-height: .9; color: var(--leaf); text-align: right; }
 .day small { display: block; font-size: .8rem; color: var(--muted); font-weight: 500; line-height: 1.4; }
 .mini { min-height: 34px; padding: 4px 10px; font-size: .875rem; }
+.casenote { display: block; text-decoration: none; }
 .germ { border-color: var(--leaf); }
 .trow { display: block; text-decoration: none; border-left: 3px solid var(--line); padding: 4px 0 6px 12px; }
 .trow.jetzt { border-color: var(--leaf); }

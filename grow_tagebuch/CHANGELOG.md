@@ -1,3 +1,9 @@
+## 0.5.0
+
+- Schädlinge & Krankheiten: Befälle als Fälle mit Geltungsbereich (ganzes Zelt oder einzelne Pflanzen), Status, Befunden mit Fotos und Maßnahmen.
+- Katalog mit 8 typischen Problemen und organischen Gegenmaßnahmen, gesperrt je nach Phase; Folgeanwendungen als Aufgaben.
+- Offene Befälle als Hinweis auf „Heute“ und auf den betroffenen Pflanzen.
+
 ## 0.4.2
 
 - Fotos werden vor dem Hochladen verkleinert; HEIC wird unterstützt; Fehler beim Foto-Upload werden angezeigt, der Eintrag bleibt erhalten.

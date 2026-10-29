@@ -79,3 +79,25 @@ def test_living_soil_mode():
         assert c.post("/api/living-soil/calc", json={"recipe_key": "classic_diy"}).status_code == 400
         c.put("/api/living-soil/mode", json={"mode": "alle"})
         assert any(not r["vegan"] for r in c.get("/api/living-soil").json()["recipes"])
+
+
+def test_pest_cases():
+    with TestClient(app) as c:
+        run = c.get("/api/runs").json()[0]
+        plants = c.get(f"/api/runs/{run['id']}").json()["plants"]
+        pid = plants[0]["id"]
+        log = c.post("/api/logs", json={"plant_id": pid, "type": "pest", "text": "Mücken"}).json()
+        case = c.post("/api/pests/cases", json={"run_id": run["id"], "pest_key": "trauermuecken", "attach_log_id": log["id"]}).json()
+        assert case["scope"] == "zelt" and case["logs"][0]["plant_id"] is None
+        nem = next(t for t in case["treatments"] if t["key"] == "nematoden_sf")
+        assert nem["allowed"]
+        r = c.post(f"/api/pests/cases/{case['id']}/treatment", json={"treatment_key": "nematoden_sf"}).json()
+        assert len(r["follow_ups"]) == 1
+        case = c.get(f"/api/pests/cases/{case['id']}").json()
+        assert case["status"] == "behandlung" and case["tasks"]
+        assert any(x["id"] == case["id"] for x in c.get("/api/today").json()["runs"][0]["cases"])
+        assert c.get(f"/api/plants/{pid}").json()["cases"]
+        m = c.post("/api/pests/cases", json={"run_id": run["id"], "pest_key": "mehltau", "plant_ids": [pid]}).json()
+        assert m["scope"] == "pflanzen" and m["plant_ids"] == [pid]
+        done = c.patch(f"/api/pests/cases/{case['id']}", json={"status": "erledigt"}).json()
+        assert done["closed_on"] and not done["tasks"]

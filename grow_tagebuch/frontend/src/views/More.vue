@@ -68,6 +68,7 @@ onMounted(load)
     <section class="grid2">
       <router-link to="/inventar" class="panel link"><h3>Inventar</h3><p class="small muted">Dünger, Zusätze, Dosierungen</p></router-link>
       <router-link to="/schema" class="panel link"><h3>Düngeschema</h3><p class="small muted">BioBizz All-Mix und Light-Mix</p></router-link>
+      <router-link to="/schaedlinge" class="panel link"><h3>Schädlinge & Krankheiten</h3><p class="small muted">Befälle, Maßnahmen, Verlauf</p></router-link>
       <router-link to="/living-soil" class="panel link"><h3>Living Soil</h3><p class="small muted">Rezepte, Ansätze, Zutaten, Tees</p></router-link>
       <router-link to="/keimung" class="panel link"><h3>Keimung</h3><p class="small muted">Methoden, Mischverhältnisse, Zeitplan</p></router-link>
       <router-link to="/training" class="panel link"><h3>Training</h3><p class="small muted">Techniken mit Anleitung, für Autos und Photos</p></router-link>

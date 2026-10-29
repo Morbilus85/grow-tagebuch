@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { api, photoUrl } from '../api.js'
-import { fmt, LOG_TYPES, rating, say } from '../util.js'
+import { fmt, LOG_TYPES, PEST, rating, say } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
 import ClimateStrip from '../components/ClimateStrip.vue'
 
@@ -42,6 +42,11 @@ onUnmounted(() => clearInterval(timer))
           {{ data.legal.living_plants }} von {{ data.legal.plant_limit }} erlaubten Pflanzen
           ({{ data.legal.adults }} Erwachsene × 3 nach KCanG){{ data.legal.status === 'ueber' ? ' – Grenze überschritten.' : '.' }}
         </p>
+
+        <router-link v-for="c in r.cases" :key="c.id" :to="`/schaedlinge/${c.id}`" class="note case" :class="PEST.statusClass[c.status]">
+          <strong>{{ c.name }}</strong> – {{ PEST.scope(c, r.plants.map((s) => s.plant)) }}, {{ PEST.status[c.status] }}
+          <span v-if="c.next_task" class="small muted"><br />Nächster Schritt {{ fmt.date(c.next_task.due_on) }}: {{ c.next_task.title }}</span>
+        </router-link>
 
         <ClimateStrip :climate="r.climate" :light="r.light" />
         <p v-for="m in r.light.messages" :key="m" class="note warn small">{{ m }}</p>
@@ -117,6 +122,7 @@ onUnmounted(() => clearInterval(timer))
 .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
 .training { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 8px; }
 .training .chip { text-decoration: none; }
+.case { display: block; text-decoration: none; }
 .lastlog { display: block; margin: 4px 0; }
 .todo { margin: 12px 0 8px; padding-left: 18px; }
 .todo li { margin: 4px 0; }
