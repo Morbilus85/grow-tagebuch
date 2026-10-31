@@ -146,6 +146,103 @@ def update_run(rid: int, data: dict, session: Session = S):
     return run
 
 
+def _abort_plant(session: Session, plant: Plant, reason: str, on: date) -> None:
+    """Pflanze beenden: Status, Datum, Tagebucheintrag, aus Einzelpflanzen-Fällen lösen."""
+    from .models import PestCase
+    plant.status = "abgebrochen"
+    plant.ended_on = on
+    plant.end_reason = reason
+    session.add(plant)
+    session.add(LogEntry(run_id=plant.run_id, plant_id=plant.id, type="phase",
+                         text=f"Abgebrochen am {on.strftime('%d.%m.%Y')}" + (f": {reason}" if reason else "")))
+    for c in session.exec(select(PestCase).where(PestCase.run_id == plant.run_id, PestCase.scope == "pflanzen",
+                                                 PestCase.status != "erledigt")).all():
+        if plant.id not in (c.plant_ids or []):
+            continue
+        c.plant_ids = [x for x in c.plant_ids if x != plant.id]
+        if not c.plant_ids:
+            c.status, c.closed_on = "erledigt", on
+            for t in session.exec(select(Task).where(Task.case_id == c.id, Task.active == True)).all():  # noqa: E712
+                t.active = False
+                session.add(t)
+        session.add(c)
+
+
+def _on(data: dict) -> date:
+    return date.fromisoformat(data["on"][:10]) if data.get("on") else date.today()
+
+
+@api.post("/plants/{pid}/abort")
+def abort_plant(pid: int, data: dict, session: Session = S):
+    plant = _get(session, Plant, pid)
+    if plant.status != "aktiv":
+        raise HTTPException(400, f"{plant.name} ist nicht mehr aktiv ({plant.status})")
+    _abort_plant(session, plant, (data.get("reason") or "").strip(), _on(data))
+    session.commit()
+    session.refresh(plant)
+    return plant
+
+
+@api.post("/plants/{pid}/reactivate")
+def reactivate_plant(pid: int, session: Session = S):
+    plant = _get(session, Plant, pid)
+    plant.status, plant.ended_on, plant.end_reason = "aktiv", None, ""
+    session.add(plant)
+    session.add(LogEntry(run_id=plant.run_id, plant_id=plant.id, type="phase", text="Wieder aktiviert"))
+    session.commit()
+    session.refresh(plant)
+    return plant
+
+
+@api.post("/runs/{rid}/abort")
+def abort_run(rid: int, data: dict, session: Session = S):
+    """Ganzen Durchgang abbrechen. Optional direkt neu starten: gleiche Einstellungen,
+    offene Aufgaben und zeltweite Schädlingsfälle wandern in den neuen Durchgang."""
+    from .models import PestCase
+    run = _get(session, Run, rid)
+    reason = (data.get("reason") or "").strip()
+    on = _on(data)
+    for p in session.exec(select(Plant).where(Plant.run_id == rid, Plant.status == "aktiv")).all():
+        _abort_plant(session, p, reason, on)
+    run.status, run.ended_on, run.end_reason = "abgebrochen", on, reason
+    session.add(run)
+    session.add(LogEntry(run_id=rid, type="note", text=f"Durchgang abgebrochen" + (f": {reason}" if reason else "")))
+    out: dict[str, Any] = {"aborted": rid, "new_run": None, "plants": []}
+    restart = data.get("restart")
+    if restart:
+        new = Run(name=restart.get("name") or f"{run.name} (Neustart)", setup_id=run.setup_id, soil_id=run.soil_id,
+                  water_id=run.water_id, schedule_id=run.schedule_id, start_date=on, light_hours=run.light_hours,
+                  light_on_time=run.light_on_time, light_level=run.light_level, lamp_distance_cm=run.lamp_distance_cm,
+                  notes=f"Neustart nach Abbruch von „{run.name}“" + (f" ({reason})" if reason else ""))
+        session.add(new)
+        session.flush()
+        for t in session.exec(select(Task).where(Task.run_id == rid, Task.active == True)).all():  # noqa: E712
+            t.run_id = new.id
+            session.add(t)
+        for c in session.exec(select(PestCase).where(PestCase.run_id == rid, PestCase.status != "erledigt")).all():
+            if c.scope == "zelt":
+                c.run_id = new.id
+                session.add(c)
+                for t in session.exec(select(Task).where(Task.case_id == c.id)).all():
+                    t.run_id = new.id
+                    session.add(t)
+        soaked_at = datetime.fromisoformat(restart["soaked_at"]) if restart.get("soaked_at") else None
+        for i in range(int(restart.get("plants") or 0)):
+            p = Plant(run_id=new.id, name=f"Pflanze {i + 1}", strain_id=restart.get("strain_id"),
+                      germ_method=restart.get("germ_method"), pot_l=restart.get("pot_l"),
+                      pot_height_cm=int(restart.get("pot_height_cm") or 30), soaked_at=soaked_at,
+                      soaked_on=soaked_at.date() if soaked_at else None)
+            session.add(p)
+        session.commit()
+        session.refresh(new)
+        out["new_run"] = new.model_dump(mode="json")
+        out["plants"] = [p.model_dump(mode="json") for p in
+                         session.exec(select(Plant).where(Plant.run_id == new.id)).all()]
+    else:
+        session.commit()
+    return out
+
+
 @api.get("/plants/{pid}")
 def get_plant(pid: int, session: Session = S):
     plant = _get(session, Plant, pid)

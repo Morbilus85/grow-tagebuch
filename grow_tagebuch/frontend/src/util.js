@@ -49,6 +49,8 @@ export function milestone(plant, phase, auto = true) {
   return null
 }
 
+export const ABORT_REASONS = ['Keimt nicht', 'Zu tief gesetzt', 'Keimling eingegangen', 'Schädlinge', 'Krankheit/Fäule', 'Zwitter/männlich', 'Neustart']
+
 export async function setMilestone(api, plant, m) {
   await api.patch(`plants/${plant.id}`, { [m.field]: today() })
   await api.post('logs', { plant_id: plant.id, type: 'phase', text: `${m.label} am ${new Date().toLocaleDateString('de-DE')}` })

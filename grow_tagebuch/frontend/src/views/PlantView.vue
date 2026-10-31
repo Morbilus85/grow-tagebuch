@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, photoUrl } from '../api.js'
-import { fmt, LOG_TYPES, PEST, rating, say, today, TRAINING } from '../util.js'
+import { ABORT_REASONS, fmt, LOG_TYPES, PEST, rating, say, today, TRAINING } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
 
 const route = useRoute()
@@ -16,6 +16,7 @@ const training = ref([])
 const showAllTraining = ref(false)
 const techNames = ref({})
 const germMethods = ref([])
+const abort = ref(null)
 
 async function load() {
   const id = route.params.id
@@ -54,6 +55,19 @@ async function removePlant() {
   await api.del(`plants/${s.value.plant.id}`)
   router.push('/')
 }
+async function doAbort() {
+  if (!confirm(`${s.value.plant.name} abbrechen? Tagebuch und Fotos bleiben erhalten, die Pflanze verschwindet aus „Heute“.`)) return
+  await api.post(`plants/${s.value.plant.id}/abort`, abort.value)
+  abort.value = null
+  edit.value = false
+  say(`${s.value.plant.name} abgebrochen`)
+  load()
+}
+async function reactivate() {
+  await api.post(`plants/${s.value.plant.id}/reactivate`)
+  say(`${s.value.plant.name} wieder aktiv`)
+  load()
+}
 function summary(l) {
   const parts = []
   if (l.volume_l) parts.push(fmt.vol(l.volume_l))
@@ -86,12 +100,18 @@ onMounted(load)
       <p v-if="s.phase.auto_mapping_note" class="small muted" style="margin-top:8px">{{ s.phase.auto_mapping_note }}</p>
     </div>
 
+    <div v-if="s.plant.status !== 'aktiv'" class="note bad row between">
+      <span><strong>{{ s.plant.status === 'abgebrochen' ? 'Abgebrochen' : s.plant.status }}</strong>
+        <template v-if="s.plant.ended_on"> am {{ fmt.date(s.plant.ended_on) }}</template><template v-if="s.plant.end_reason"> – {{ s.plant.end_reason }}</template></span>
+      <button class="ghost small" @click="reactivate">Wieder aktivieren</button>
+    </div>
+
     <router-link v-for="c in s.cases" :key="c.id" :to="`/schaedlinge/${c.id}`" class="note casenote" :class="PEST.statusClass[c.status]">
       <strong>{{ c.name }}</strong> – {{ c.scope === 'zelt' ? 'betrifft das ganze Zelt' : 'betrifft diese Pflanze' }}, {{ PEST.status[c.status] }}
     </router-link>
     <router-link :to="{ path: '/schaedlinge', query: { neu: 1, plant: s.plant.id } }" class="small muted">Befall melden</router-link>
 
-    <section v-if="s.germination" class="panel stack germ">
+    <section v-if="s.germination && s.plant.status === 'aktiv'" class="panel stack germ">
       <div class="row between">
         <h3>Keimung<template v-if="s.germination.method_name">: {{ s.germination.method_name }}</template></h3>
         <span class="small muted" v-if="s.germination.elapsed">{{ s.germination.elapsed }}</span>
@@ -106,9 +126,11 @@ onMounted(load)
     </section>
 
     <div class="row">
+      <template v-if="s.plant.status === 'aktiv'">
       <button v-if="!s.plant.planted_on" class="primary" @click="setDate('planted_on', 'Gesetzt')">Heute gesetzt</button>
       <button v-else-if="!s.plant.sprouted_on" class="primary" @click="setDate('sprouted_on', 'Aufgelaufen')">Heute aufgelaufen</button>
       <button v-else-if="!s.plant.preflower_on && s.strain?.auto !== false" @click="setDate('preflower_on', 'Vorblüte')">Vorblüte heute bestätigen</button>
+      </template>
       <button class="ghost" @click="edit = !edit">{{ edit ? 'Schließen' : 'Daten bearbeiten' }}</button>
     </div>
 
@@ -139,10 +161,26 @@ onMounted(load)
         Magnesium-Mangel beobachtet (CalMag vorziehen)</label>
       <label class="field"><span>Notizen</span><textarea v-model="form.notes"></textarea></label>
       <div class="row between">
-        <button type="button" class="danger" @click="removePlant">Pflanze löschen</button>
+        <div class="row">
+          <button type="button" class="danger" v-if="s.plant.status === 'aktiv'" @click="abort = abort ? null : { reason: '' }">Pflanze abbrechen</button>
+          <button type="button" class="danger" @click="removePlant">Löschen</button>
+        </div>
         <button class="primary">Speichern</button>
       </div>
+      <p class="small muted">Abbrechen beendet die Pflanze, Tagebuch und Fotos bleiben erhalten. Löschen entfernt alles endgültig.</p>
     </form>
+
+    <section v-if="abort" class="panel stack">
+      <h3>{{ s.plant.name }} abbrechen</h3>
+      <div class="row">
+        <button v-for="r in ABORT_REASONS" :key="r" type="button" class="chip" :class="{ bad: abort.reason === r }" @click="abort.reason = r">{{ r }}</button>
+      </div>
+      <label class="field"><span>Grund</span><input v-model="abort.reason" placeholder="z. B. zu tief gesetzt, kein Trieb" /></label>
+      <div class="row between">
+        <button type="button" class="ghost" @click="abort = null">Zurück</button>
+        <button type="button" class="danger" @click="doAbort">Endgültig abbrechen</button>
+      </div>
+    </section>
 
     <div v-if="s.space.height_cm" class="panel stack">
       <h3>Platz bis zur Lampe</h3>

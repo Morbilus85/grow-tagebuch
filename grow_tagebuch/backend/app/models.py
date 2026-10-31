@@ -139,7 +139,9 @@ class Run(SQLModel, table=True):
     water_id: Optional[int] = Field(default=None, foreign_key="waterprofile.id")
     schedule_id: Optional[int] = Field(default=None, foreign_key="feedingschedule.id")
     start_date: date
-    status: str = "aktiv"  # geplant, aktiv, ernte, trocknung, curing, abgeschlossen
+    status: str = "aktiv"  # geplant, aktiv, ernte, trocknung, curing, abgeschlossen, abgebrochen
+    ended_on: Optional[date] = None
+    end_reason: str = ""
     light_hours: float = 20
     light_on_time: str = "06:00"
     light_level: Optional[int] = None
@@ -162,7 +164,9 @@ class Plant(SQLModel, table=True):
     preflower_on: Optional[date] = None  # bestätigt
     flip_on: Optional[date] = None  # Photos: Umstellung 12/12
     harvested_on: Optional[date] = None
-    status: str = "aktiv"  # aktiv, geerntet, eingegangen
+    status: str = "aktiv"  # aktiv, geerntet, eingegangen, abgebrochen
+    ended_on: Optional[date] = None
+    end_reason: str = ""
     feed_factor: float = 1.0  # manueller Stärkefaktor (wirkt auf das Schema)
     mg_deficiency_flag: bool = False
     notes: str = ""

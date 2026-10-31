@@ -1,3 +1,8 @@
+## 0.6.0
+
+- Pflanze abbrechen (Pflanzenseite → Daten bearbeiten → „Pflanze abbrechen“): mit Grund, Tagebuch und Fotos bleiben erhalten, die Pflanze verschwindet aus „Heute“ und zählt nicht mehr zum KCanG-Limit. „Wieder aktivieren“ macht das rückgängig.
+- Durchgang abbrechen (Mehr → Durchgang → ganz unten): beendet alle aktiven Pflanzen. Optional direkt neu starten: übernimmt Zelt, Erde, Wasser, Düngeschema und Licht, legt die neuen Samen mit Keimmethode und Einweich-Zeitpunkt an; offene Aufgaben und zeltweite Schädlingsfälle laufen weiter.
+
 ## 0.5.3
 
 - Heute: Ein-Klick-Button für den nächsten Meilenstein jeder Pflanze (Gesetzt, Aufgelaufen, Vorblüte) – übernimmt das heutige Datum und verschwindet danach.

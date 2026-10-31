@@ -22,6 +22,7 @@ LABELS = {
     "flush": "Reife / nur Wasser",
     "harvest": "Erntereif",
     "geerntet": "Geerntet",
+    "abgebrochen": "Abgebrochen",
 }
 
 
@@ -58,6 +59,8 @@ def _bloom_column(bloom_week: int, bloom_feed_weeks: float) -> int:
 
 def compute(plant, strain, today: Optional[date] = None) -> PhaseInfo:
     today = today or date.today()
+    if plant.status in ("abgebrochen", "eingegangen"):
+        return PhaseInfo("abgebrochen", LABELS["abgebrochen"])
     if plant.harvested_on or plant.status == "geerntet":
         return PhaseInfo("geerntet", LABELS["geerntet"])
     if not plant.sprouted_on:

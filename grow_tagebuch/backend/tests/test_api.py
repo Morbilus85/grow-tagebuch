@@ -101,3 +101,31 @@ def test_pest_cases():
         assert m["scope"] == "pflanzen" and m["plant_ids"] == [pid]
         done = c.patch(f"/api/pests/cases/{case['id']}", json={"status": "erledigt"}).json()
         assert done["closed_on"] and not done["tasks"]
+
+
+def test_abort_plant_and_restart_run():
+    with TestClient(app) as c:
+        run = c.get("/api/today").json()["runs"][0]["run"]
+        p = c.post("/api/plants", json={"run_id": run["id"], "name": "Abbruch", "planted_on": "2026-10-27"}).json()
+        case = c.post("/api/pests/cases", json={"run_id": run["id"], "pest_key": "mehltau", "plant_ids": [p["id"]]}).json()
+        a = c.post(f"/api/plants/{p['id']}/abort", json={"reason": "zu tief gesetzt"}).json()
+        assert a["status"] == "abgebrochen" and a["ended_on"] and a["end_reason"] == "zu tief gesetzt"
+        assert c.get(f"/api/plants/{p['id']}").json()["phase"]["phase"] == "abgebrochen"
+        assert c.get(f"/api/pests/cases/{case['id']}").json()["status"] == "erledigt"
+        assert c.post(f"/api/plants/{p['id']}/abort", json={}).status_code == 400
+        today_ids = [s["plant"]["id"] for s in c.get("/api/today").json()["runs"][0]["plants"]]
+        assert p["id"] not in today_ids
+
+        zelt = c.post("/api/pests/cases", json={"run_id": run["id"], "pest_key": "trauermuecken"}).json()
+        r = c.post(f"/api/runs/{run['id']}/abort", json={"reason": "Neustart", "restart": {
+            "name": "Run 2", "plants": 3, "germ_method": "h2o2", "soaked_at": "2026-10-31T20:00:00"}}).json()
+        new = r["new_run"]
+        assert new["status"] == "aktiv" and new["setup_id"] == run["setup_id"] and new["light_hours"] == run["light_hours"]
+        assert len(r["plants"]) == 3 and r["plants"][0]["soaked_on"] == "2026-10-31"
+        old = c.get(f"/api/runs/{run['id']}").json()
+        assert old["run"]["status"] == "abgebrochen" and all(x["status"] != "aktiv" for x in old["plants"])
+        assert c.get(f"/api/pests/cases/{zelt['id']}").json()["run_id"] == new["id"]
+        t = c.get("/api/today").json()["runs"]
+        assert [x["run"]["id"] for x in t] == [new["id"]] and len(t[0]["plants"]) == 3
+        assert t[0]["tasks"] or c.get("/api/tasks").json()
+        assert c.get("/api/household").json()["living_plants"] >= 0
