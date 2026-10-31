@@ -1,3 +1,8 @@
+## 0.6.2
+
+- Durchgang löschen (Durchgangsseite, neben Speichern) für Fehleingaben: entfernt Pflanzen, Einträge und Fotos; offene Aufgaben und Schädlingsfälle wandern in den aktuellen Durchgang.
+- Samen eintragen: Eine neu eingetippte Sorte wird beim Eintragen automatisch mitgespeichert, auch ohne vorher „Sorte speichern“ zu drücken.
+
 ## 0.6.1
 
 - Neustart in zwei Schritten: Beim Abbrechen nur Grund und „Direkt neu starten“, danach öffnet sich die eigene Seite „Samen eintragen“ (Sorte und Anzahl, auch mehrere Sorten, Keimmethode, Einweich-Zeitpunkt, Topf).

@@ -50,6 +50,12 @@ async function addStrain() {
 function openAbort() {
   ab.value = { reason: '', restart: true }
 }
+async function removeRun() {
+  if (!confirm(`„${run.value.name}“ mit allen Pflanzen, Einträgen und Fotos endgültig löschen? Nur für Fehleingaben gedacht.`)) return
+  await api.del(`runs/${run.value.id}`)
+  say('Durchgang gelöscht')
+  router.push('/mehr')
+}
 async function doAbort() {
   const a = ab.value
   const n = plants.value.filter((p) => p.status === 'aktiv').length
@@ -129,7 +135,10 @@ onMounted(load)
       </div>
       <label class="field"><span>Düngeschema</span><select v-model.number="run.schedule_id"><option v-for="s in schedules" :key="s.id" :value="s.id">{{ s.name }}</option></select></label>
       <label class="field"><span>Notizen</span><textarea v-model="run.notes"></textarea></label>
-      <button class="primary">Speichern</button>
+      <div class="row between">
+        <button type="button" class="danger" @click="removeRun">Durchgang löschen</button>
+        <button class="primary">Speichern</button>
+      </div>
     </form>
 
     <section class="panel stack" v-if="run.status === 'aktiv'">

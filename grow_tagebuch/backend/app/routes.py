@@ -316,6 +316,40 @@ def abort_run(rid: int, data: dict, session: Session = S):
     return out
 
 
+@api.delete("/runs/{rid}")
+def delete_run(rid: int, session: Session = S):
+    """Durchgang samt Pflanzen, Einträgen und Fotos löschen (für Fehleingaben).
+    Offene Aufgaben und Schädlingsfälle wandern in den neuesten anderen Durchgang."""
+    from .models import PestCase
+    run = _get(session, Run, rid)
+    other = session.exec(select(Run).where(Run.id != rid).order_by(Run.status != "aktiv", Run.id.desc())).first()
+    for l in session.exec(select(LogEntry).where(LogEntry.run_id == rid)).all():
+        if other and l.case_id:
+            l.run_id, l.plant_id = other.id, None
+            session.add(l)
+        else:
+            _delete_log(session, l)
+    for c in session.exec(select(PestCase).where(PestCase.run_id == rid)).all():
+        if other:
+            c.run_id, c.plant_ids = other.id, [] if c.scope == "zelt" else c.plant_ids
+            session.add(c)
+        else:
+            session.delete(c)
+    for t in session.exec(select(Task).where(Task.run_id == rid)).all():
+        if other and t.active:
+            t.run_id = other.id
+            session.add(t)
+        else:
+            session.delete(t)
+    session.flush()
+    for p in session.exec(select(Plant).where(Plant.run_id == rid)).all():
+        session.delete(p)
+    session.flush()
+    session.delete(run)
+    session.commit()
+    return {"ok": True, "moved_to": other.id if other else None}
+
+
 @api.get("/plants/{pid}")
 def get_plant(pid: int, session: Session = S):
     plant = _get(session, Plant, pid)

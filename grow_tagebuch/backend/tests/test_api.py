@@ -150,3 +150,15 @@ def test_restart_then_seeds_auto_name():
         assert c.get(f"/api/runs/{new['id']}").json()["run"]["name"] == "Mein Grow"
         blank = c.post("/api/runs", json={"setup_id": run["setup_id"], "name": ""}).json()
         assert blank["name_auto"] and blank["name"].startswith("Grow – ")
+
+
+def test_delete_run_moves_open_items():
+    with TestClient(app) as c:
+        keep = c.get("/api/today").json()["runs"][0]["run"]
+        extra = c.post("/api/runs", json={"setup_id": keep["setup_id"], "name": "", "status": "abgebrochen"}).json()
+        c.post(f"/api/runs/{extra['id']}/seeds", json={"rows": [{"strain_id": 1, "count": 2}]})
+        t = c.post("/api/tasks", json={"title": "Test", "run_id": extra["id"], "interval_days": 7}).json()
+        moved = c.delete(f"/api/runs/{extra['id']}").json()["moved_to"]
+        assert moved and moved != extra["id"] and c.get(f"/api/runs/{moved}").json()["run"]["status"] == "aktiv"
+        assert c.get(f"/api/runs/{extra['id']}").status_code == 404
+        assert next(x for x in c.get("/api/tasks").json() if x["id"] == t["id"])["run_id"] == moved

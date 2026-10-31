@@ -45,6 +45,7 @@ async function save() {
   busy.value = true
   err.value = ''
   try {
+    if (newStrain.value?.name) await addStrain()  // offene neue Sorte nicht verlieren
     const body = { ...f.value, soaked_at: f.value.soaked_at ? `${f.value.soaked_at.slice(0, 16)}:00` : null }
     const r = await api.post(`runs/${run.value.id}/seeds`, body)
     say(r.warning || `${total.value} Samen eingetragen – „${r.run.name}“`)
