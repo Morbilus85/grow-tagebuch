@@ -14,10 +14,12 @@ const ROLES = { temp: 'Temperatur', rh: 'Luftfeuchte', vpd: 'VPD', light_level: 
   exhaust_level: 'Abluft Stufe', heater_switch: 'Heizung', heatmat_switch: 'Heizmatte', room_temp: 'Raum Temperatur', room_rh: 'Raum Feuchte' }
 const sensorEdit = ref({})
 const hh = ref(null)
+const strains = ref([])
 
 async function load() {
   ;[runs.value, soils.value, waters.value, tasks.value, setups.value] = await Promise.all(
     [api.get('runs'), api.get('soils'), api.get('waters'), api.get('tasks'), api.get('setups')])
+  strains.value = await api.get('strains')
   hh.value = await api.get('household')
   for (const s of setups.value) sensorEdit.value[s.id] = Object.fromEntries(Object.keys(ROLES).map((r) => [r, s.sensors.find((x) => x.role === r)?.entity_id || '']))
 }
@@ -62,6 +64,13 @@ onMounted(load)
       </form>
       <router-link v-for="r in runs" :key="r.id" :to="`/run/${r.id}`" class="panel row between link">
         <strong>{{ r.name }}</strong><span class="small muted">{{ r.status }}, seit {{ fmt.date(r.start_date) }}</span>
+      </router-link>
+    </section>
+
+    <section class="stack" v-if="strains.length">
+      <h2>Sorten</h2>
+      <router-link v-for="s in strains" :key="s.id" :to="`/sorte/${s.id}`" class="panel row between link">
+        <strong>{{ s.name }}</strong><span class="small muted">{{ s.breeder }}{{ s.info?.thc ? `, THC ${s.info.thc}` : '' }}</span>
       </router-link>
     </section>
 

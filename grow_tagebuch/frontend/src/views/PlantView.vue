@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, photoUrl } from '../api.js'
 import { ABORT_REASONS, fmt, LOG_TYPES, PEST, rating, say, today, TRAINING } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
+import StrainInfo from '../components/StrainInfo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,7 @@ const showAllTraining = ref(false)
 const techNames = ref({})
 const germMethods = ref([])
 const abort = ref(null)
+const strain = ref(null)
 
 async function load() {
   const id = route.params.id
@@ -26,6 +28,7 @@ async function load() {
   if (!Object.keys(techNames.value).length) techNames.value = Object.fromEntries((await api.get('training')).map((t) => [t.key, t.name]))
   form.value = { ...s.value.plant, soaked_at: s.value.plant.soaked_at ? s.value.plant.soaked_at.slice(0, 16) : null }
   if (!germMethods.value.length) germMethods.value = (await api.get('germination')).methods
+  if (s.value.plant.strain_id && strain.value?.id !== s.value.plant.strain_id) strain.value = await api.get(`strains/${s.value.plant.strain_id}`)
 }
 async function save() {
   const f = form.value
@@ -110,6 +113,14 @@ onMounted(load)
       <strong>{{ c.name }}</strong> – {{ c.scope === 'zelt' ? 'betrifft das ganze Zelt' : 'betrifft diese Pflanze' }}, {{ PEST.status[c.status] }}
     </router-link>
     <router-link :to="{ path: '/schaedlinge', query: { neu: 1, plant: s.plant.id } }" class="small muted">Befall melden</router-link>
+
+    <details v-if="strain" class="panel">
+      <summary><strong>Sorte: {{ strain.name }}</strong> <span class="small muted">– Steckbrief</span></summary>
+      <div style="margin-top:12px" class="stack">
+        <StrainInfo :strain="strain" compact />
+        <router-link :to="`/sorte/${strain.id}`" class="small muted">Ganzer Steckbrief, Training, Quellen</router-link>
+      </div>
+    </details>
 
     <section v-if="s.germination && s.plant.status === 'aktiv'" class="panel stack germ">
       <div class="row between">

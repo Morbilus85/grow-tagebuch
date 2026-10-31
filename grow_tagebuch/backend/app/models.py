@@ -117,6 +117,7 @@ class Strain(SQLModel, table=True):
     max_height_cm: Optional[int] = None
     genetics: str = ""
     notes: str = ""
+    info: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # Steckbrief (Typ, THC, Ertrag, Training, Quellen …)
 
 
 class LightCalibration(SQLModel, table=True):

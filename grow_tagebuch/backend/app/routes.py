@@ -723,6 +723,57 @@ def strains(session: Session = S):
     return session.exec(select(Strain)).all()
 
 
+def _tent_room(session: Session) -> Optional[float]:
+    setup = session.exec(select(Setup).order_by(Setup.id)).first()
+    if not setup or not setup.height_cm:
+        return None
+    from .logic.space import MIN_USEFUL_DISTANCE
+    return setup.height_cm - (setup.lamp_hang_cm or 15) - 30 - MIN_USEFUL_DISTANCE
+
+
+def _strain_dict(session: Session, st: Strain) -> dict:
+    from . import strain_info
+    return {**st.model_dump(mode="json"), "info": st.info or {},
+            "training": strain_info.training_for(st, _tent_room(session)),
+            "plants": len(session.exec(select(Plant).where(Plant.strain_id == st.id)).all()),
+            "lookup_available": bool(strain_info.api_key())}
+
+
+@api.get("/strains/{sid}")
+def get_strain(sid: int, session: Session = S):
+    return _strain_dict(session, _get(session, Strain, sid))
+
+
+@api.post("/strains/lookup")
+async def strain_lookup(data: dict):
+    """Steckbrief aus dem Internet holen (ohne zu speichern) – für das Formular „Neue Sorte“."""
+    from . import strain_info
+    if not (data.get("name") or "").strip():
+        raise HTTPException(400, "Sortenname fehlt")
+    try:
+        return await strain_info.lookup(data["name"].strip(), (data.get("breeder") or "").strip(), data.get("auto"))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+
+
+@api.post("/strains/{sid}/refresh")
+async def strain_refresh(sid: int, session: Session = S):
+    from . import strain_info
+    st = _get(session, Strain, sid)
+    try:
+        r = await strain_info.lookup(st.name, st.breeder, st.auto)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    for k in ("genetics", "seed_to_harvest_days", "flowering_days", "max_height_cm"):
+        if r["fields"].get(k) not in (None, ""):
+            setattr(st, k, r["fields"][k])
+    st.info = r["info"]
+    session.add(st)
+    session.commit()
+    session.refresh(st)
+    return _strain_dict(session, st)
+
+
 @api.post("/strains")
 def create_strain(data: dict, session: Session = S):
     s = _apply(Strain(name=data["name"]), data)
@@ -738,7 +789,7 @@ def update_strain(sid: int, data: dict, session: Session = S):
     session.add(s)
     session.commit()
     session.refresh(s)
-    return s
+    return _strain_dict(session, s)
 
 
 @api.get("/schedules")

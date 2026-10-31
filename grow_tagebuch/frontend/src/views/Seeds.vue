@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import StrainInfo from '../components/StrainInfo.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api.js'
 import { say } from '../util.js'
@@ -13,6 +14,9 @@ const f = ref(null)
 const newStrain = ref(null)
 const busy = ref(false)
 const err = ref('')
+const detail = ref(null)
+const looking = ref(false)
+const lookupErr = ref('')
 
 function localNow() {
   const d = new Date()
@@ -34,6 +38,15 @@ async function load() {
     rows: [{ strain_id: last?.strain_id || strains.value[0]?.id, count: Math.max(prevPlants.filter((p) => p.status !== 'geerntet').length, 1) || 3 }],
     germ_method: last?.germ_method || 'h2o2', soaked_at: localNow(), pot_l: last?.pot_l || 20, pot_height_cm: last?.pot_height_cm || 30,
   }
+}
+watch(() => f.value?.rows?.[0]?.strain_id, async (id) => { detail.value = id ? await api.get(`strains/${id}`) : null })
+async function lookup() {
+  looking.value = true
+  lookupErr.value = ''
+  try {
+    const r = await api.post('strains/lookup', { name: newStrain.value.name, breeder: newStrain.value.breeder, auto: newStrain.value.auto })
+    newStrain.value = { ...newStrain.value, ...r.fields, info: r.info }
+  } catch (e) { lookupErr.value = e.message } finally { looking.value = false }
 }
 async function addStrain() {
   const s = await api.post('strains', newStrain.value)
@@ -91,11 +104,23 @@ onMounted(load)
           <label class="field" v-else><span>Blütedauer (Tage)</span><input type="number" v-model.number="newStrain.flowering_days" /></label>
           <label class="field"><span>Max. Höhe (cm)</span><input type="number" v-model.number="newStrain.max_height_cm" /></label>
         </div>
+        <button type="button" :disabled="!newStrain.name || looking || detail?.lookup_available === false" @click="lookup">
+          {{ looking ? 'Recherchiere … (bis zu 1 Minute)' : 'Infos aus dem Internet holen' }}</button>
+        <p v-if="detail?.lookup_available === false" class="small muted">Für den Internet-Abruf den Claude-API-Schlüssel in der Add-on-Konfiguration eintragen – sonst Werte von Hand.</p>
+        <p v-if="lookupErr" class="note bad small">{{ lookupErr }}</p>
+        <p v-if="newStrain.info" class="note info small">Steckbrief gefunden{{ newStrain.genetics ? `: ${newStrain.genetics}` : '' }}{{ newStrain.info.thc ? `, THC ${newStrain.info.thc}` : '' }}.
+          Wird mit der Sorte gespeichert.</p>
         <div class="row between">
           <button type="button" class="ghost" @click="newStrain = null">Zurück</button>
           <button type="button" @click="addStrain" :disabled="!newStrain.name">Sorte speichern</button>
         </div>
       </div>
+
+      <details v-if="detail && !newStrain" class="sunken">
+        <summary><strong>{{ detail.name }}</strong> – Steckbrief</summary>
+        <div style="margin-top:10px"><StrainInfo :strain="detail" compact /></div>
+        <router-link :to="`/sorte/${detail.id}`" class="small muted">Ganzer Steckbrief</router-link>
+      </details>
 
       <div class="grid2">
         <label class="field"><span>Keimmethode</span>

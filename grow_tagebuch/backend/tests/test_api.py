@@ -162,3 +162,29 @@ def test_delete_run_moves_open_items():
         assert moved and moved != extra["id"] and c.get(f"/api/runs/{moved}").json()["run"]["status"] == "aktiv"
         assert c.get(f"/api/runs/{extra['id']}").status_code == 404
         assert next(x for x in c.get("/api/tasks").json() if x["id"] == t["id"])["run_id"] == moved
+
+
+def test_strain_info(monkeypatch):
+    from app import strain_info
+    raw = """Recherche …
+```json
+{"name": "White Truffle Auto", "breeder": "Zamnesia Seeds", "auto": true, "genetics": "GG x PBB x Ruderalis",
+ "type": "60 % Indica", "thc": "23 %", "seed_to_harvest_days": "63", "max_height_cm": 100, "specials": ["kompakt"],
+ "training": [{"key": "lst", "rating": "top", "reason": "buschig"}, {"key": "quatsch", "rating": "top"},
+              {"key": "mainlining", "rating": "nein", "reason": "zu kurz"}]}
+```"""
+    parsed = strain_info.to_strain(strain_info._extract_json(raw), [{"url": "https://x", "title": "X"}], "internet")
+    assert parsed["fields"]["seed_to_harvest_days"] == 63 and len(parsed["info"]["training"]) == 2
+
+    async def fake(name, breeder="", auto=None):
+        return parsed
+    with TestClient(app) as c:
+        assert c.post("/api/strains/lookup", json={"name": "White Truffle Auto"}).status_code == 502  # kein Schlüssel
+        monkeypatch.setattr(strain_info, "lookup", fake)
+        st = c.post("/api/strains", json={"name": "White Truffle Auto", "breeder": "Zamnesia Seeds"}).json()
+        d = c.get(f"/api/strains/{st['id']}").json()
+        assert d["training"] and d["info"] == {} and d["lookup_available"] is False
+        r = c.post(f"/api/strains/{st['id']}/refresh").json()
+        assert r["seed_to_harvest_days"] == 63 and r["info"]["thc"] == "23 %"
+        assert r["training"][0]["key"] == "lst" and r["training"][-1]["rating"] == "nein"
+        assert c.post("/api/strains/lookup", json={"name": "X"}).json()["fields"]["name"] == "White Truffle Auto"

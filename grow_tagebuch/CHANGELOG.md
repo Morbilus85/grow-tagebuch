@@ -1,3 +1,10 @@
+## 0.7.0
+
+- Sorten-Steckbrief (Mehr → Sorten): Typ, Genetik, THC/CBD, Samen bis Ernte (Breeder und Erfahrungswerte), Höhe, Ertrag, Schwierigkeit, Wuchs, Aroma, Wirkung, Besonderheiten, Anbautipps, Quellen.
+- Training je Sorte: jede Technik bewertet (besonders geeignet / geeignet / mit Vorsicht / ungeeignet) mit Begründung, verlinkt zur Anleitung. Ohne Steckbrief gilt die allgemeine Eignung für Autos bzw. Photos; passt die Sorte nicht ins Zelt, wird LST hochgestuft.
+- „Infos aus dem Internet holen“: recherchiert die Sorte über die Claude-API mit Websuche (Herstellerseite, Grower-Erfahrungen) und füllt Steckbrief und Eckdaten aus – beim Anlegen einer neuen Sorte und auf der Sortenseite. Braucht den Claude-API-Schlüssel in der Add-on-Konfiguration.
+- Kurz-Steckbrief auf der Pflanzenseite und beim Samen eintragen.
+
 ## 0.6.2
 
 - Durchgang löschen (Durchgangsseite, neben Speichern) für Fehleingaben: entfernt Pflanzen, Einträge und Fotos; offene Aufgaben und Schädlingsfälle wandern in den aktuellen Durchgang.
