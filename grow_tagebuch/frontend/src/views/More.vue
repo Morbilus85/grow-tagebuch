@@ -37,7 +37,7 @@ async function saveHousehold() {
 }
 async function createRun() {
   const r = await api.post('runs', newRun.value)
-  location.hash = `#/run/${r.id}`
+  location.hash = `#/run/${r.id}/samen`
 }
 function startRun() {
   const last = runs.value[0] || {}
@@ -55,10 +55,10 @@ onMounted(load)
       <div class="row between"><h2>Durchgänge</h2><button class="ghost" @click="startRun">Neuer Durchgang</button></div>
       <form v-if="newRun" class="panel stack" @submit.prevent="createRun">
         <div class="grid2">
-          <label class="field"><span>Name</span><input v-model="newRun.name" required /></label>
+          <label class="field"><span>Name</span><input v-model="newRun.name" placeholder="automatisch (Sorte – Saison)" /></label>
           <label class="field"><span>Setup</span><select v-model.number="newRun.setup_id"><option v-for="s in setups" :key="s.id" :value="s.id">{{ s.name }}</option></select></label>
         </div>
-        <button class="primary">Durchgang anlegen</button>
+        <button class="primary">Weiter zu den Samen</button>
       </form>
       <router-link v-for="r in runs" :key="r.id" :to="`/run/${r.id}`" class="panel row between link">
         <strong>{{ r.name }}</strong><span class="small muted">{{ r.status }}, seit {{ fmt.date(r.start_date) }}</span>

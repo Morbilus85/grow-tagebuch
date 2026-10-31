@@ -129,3 +129,24 @@ def test_abort_plant_and_restart_run():
         assert [x["run"]["id"] for x in t] == [new["id"]] and len(t[0]["plants"]) == 3
         assert t[0]["tasks"] or c.get("/api/tasks").json()
         assert c.get("/api/household").json()["living_plants"] >= 0
+
+
+def test_restart_then_seeds_auto_name():
+    with TestClient(app) as c:
+        run = c.get("/api/today").json()["runs"][0]["run"]
+        r = c.post(f"/api/runs/{run['id']}/abort", json={"reason": "Keimt nicht", "restart": True}).json()
+        new = r["new_run"]
+        assert new["name_auto"] and any(x in new["name"] for x in ("Frühling", "Sommer", "Herbst", "Winter"))
+        assert new["name"] != run["name"] and not r["plants"]
+        strain = c.get("/api/strains").json()[0]
+        out = c.post(f"/api/runs/{new['id']}/seeds", json={"rows": [{"strain_id": strain["id"], "count": 2}],
+                                                           "germ_method": "h2o2", "soaked_at": "2026-10-31T18:30:00"}).json()
+        assert len(out["plants"]) == 2 and out["run"]["name"].startswith(strain["name"])
+        assert out["plants"][1]["name"] == "Pflanze 2" and out["plants"][0]["soaked_at"].startswith("2026-10-31T18:30")
+        assert c.post(f"/api/runs/{new['id']}/seeds", json={"rows": []}).status_code == 400
+        renamed = c.patch(f"/api/runs/{new['id']}", json={"name": "Mein Grow"}).json()
+        assert renamed["name"] == "Mein Grow" and not renamed["name_auto"]
+        c.post(f"/api/runs/{new['id']}/seeds", json={"rows": [{"strain_id": strain["id"], "count": 1}]})
+        assert c.get(f"/api/runs/{new['id']}").json()["run"]["name"] == "Mein Grow"
+        blank = c.post("/api/runs", json={"setup_id": run["setup_id"], "name": ""}).json()
+        assert blank["name_auto"] and blank["name"].startswith("Grow – ")

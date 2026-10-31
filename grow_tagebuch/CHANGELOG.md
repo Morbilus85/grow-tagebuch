@@ -1,3 +1,9 @@
+## 0.6.1
+
+- Neustart in zwei Schritten: Beim Abbrechen nur Grund und „Direkt neu starten“, danach öffnet sich die eigene Seite „Samen eintragen“ (Sorte und Anzahl, auch mehrere Sorten, Keimmethode, Einweich-Zeitpunkt, Topf).
+- Durchgangsname wird automatisch erzeugt („Sorte – Saison Jahr“, bei Dopplung mit Nummer) und passt sich der gewählten Sorte an, bis du ihn von Hand änderst.
+- „Neuer Durchgang“ unter Mehr: Name optional, führt direkt zu „Samen eintragen“. Auf der Durchgangsseite gibt es dafür zusätzlich den Button „Samen eintragen“.
+
 ## 0.6.0
 
 - Pflanze abbrechen (Pflanzenseite → Daten bearbeiten → „Pflanze abbrechen“): mit Grund, Tagebuch und Fotos bleiben erhalten, die Pflanze verschwindet aus „Heute“ und zählt nicht mehr zum KCanG-Limit. „Wieder aktivieren“ macht das rückgängig.

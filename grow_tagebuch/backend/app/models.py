@@ -142,6 +142,7 @@ class Run(SQLModel, table=True):
     status: str = "aktiv"  # geplant, aktiv, ernte, trocknung, curing, abgeschlossen, abgebrochen
     ended_on: Optional[date] = None
     end_reason: str = ""
+    name_auto: bool = False  # Name wird aus Sorte + Saison erzeugt, bis er von Hand geändert wird
     light_hours: float = 20
     light_on_time: str = "06:00"
     light_level: Optional[int] = None

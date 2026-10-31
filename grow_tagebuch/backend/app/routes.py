@@ -116,6 +116,34 @@ async def today(session: Session = S):
 
 # ------------------------------------------------------------------ Runs & Pflanzen
 
+SEASONS = {12: "Winter", 1: "Winter", 2: "Winter", 3: "Frühling", 4: "Frühling", 5: "Frühling",
+           6: "Sommer", 7: "Sommer", 8: "Sommer", 9: "Herbst", 10: "Herbst", 11: "Herbst"}
+
+
+def _season(d: date) -> str:
+    if d.month == 12:
+        return f"Winter {d.year}/{str(d.year + 1)[2:]}"
+    if d.month <= 2:
+        return f"Winter {d.year - 1}/{str(d.year)[2:]}"
+    return f"{SEASONS[d.month]} {d.year}"
+
+
+def _auto_name(session: Session, strain_ids: list, on: date, exclude_id: Optional[int] = None) -> str:
+    """„Sorte – Saison Jahr“, bei Dopplung mit laufender Nummer."""
+    names = []
+    for sid in strain_ids:
+        st = session.get(Strain, sid) if sid else None
+        if st and st.name not in names:
+            names.append(st.name)
+    head = names[0] if len(names) == 1 else (f"{names[0]} & {names[1]}" if len(names) == 2 else ("Mischgrow" if names else "Grow"))
+    base = f"{head} – {_season(on)}"
+    taken = {r.name for r in session.exec(select(Run)).all() if r.id != exclude_id}
+    name, n = base, 2
+    while name in taken:
+        name, n = f"{base} ({n})", n + 1
+    return name
+
+
 @api.get("/runs")
 def list_runs(session: Session = S):
     return session.exec(select(Run).order_by(Run.start_date.desc())).all()
@@ -130,7 +158,12 @@ def get_run(rid: int, session: Session = S):
 
 @api.post("/runs")
 def create_run(data: dict, session: Session = S):
-    run = _apply(Run(name=data.get("name", "Neuer Run"), setup_id=data["setup_id"], start_date=date.today()), data)
+    if not (data.get("name") or "").strip():
+        data = {k: v for k, v in data.items() if k != "name"}
+        run = _apply(Run(name=_auto_name(session, [], date.today()), setup_id=data["setup_id"], start_date=date.today(),
+                         name_auto=True), data)
+    else:
+        run = _apply(Run(name=data["name"], setup_id=data["setup_id"], start_date=date.today()), data)
     session.add(run)
     session.commit()
     session.refresh(run)
@@ -139,7 +172,10 @@ def create_run(data: dict, session: Session = S):
 
 @api.patch("/runs/{rid}")
 def update_run(rid: int, data: dict, session: Session = S):
-    run = _apply(_get(session, Run, rid), data)
+    run = _get(session, Run, rid)
+    if "name" in data and data["name"] != run.name:
+        run.name_auto = False
+    run = _apply(run, data)
     session.add(run)
     session.commit()
     session.refresh(run)
@@ -194,6 +230,46 @@ def reactivate_plant(pid: int, session: Session = S):
     return plant
 
 
+def _add_seeds(session: Session, run: Run, data: dict) -> list:
+    rows = data.get("rows") or ([{"strain_id": data.get("strain_id"), "count": data.get("plants") or data.get("count")}]
+                                if (data.get("plants") or data.get("count")) else [])
+    soaked_at = datetime.fromisoformat(data["soaked_at"]) if data.get("soaked_at") else None
+    existing = len(session.exec(select(Plant).where(Plant.run_id == run.id)).all())
+    created = []
+    for row in rows:
+        for _ in range(int(row.get("count") or 0)):
+            existing += 1
+            p = Plant(run_id=run.id, name=f"Pflanze {existing}", strain_id=row.get("strain_id"),
+                      germ_method=data.get("germ_method"), pot_l=data.get("pot_l"),
+                      pot_height_cm=int(data.get("pot_height_cm") or 30), soaked_at=soaked_at,
+                      soaked_on=soaked_at.date() if soaked_at else None)
+            session.add(p)
+            created.append(p)
+    if run.name_auto and created:
+        ids = [p.strain_id for p in session.exec(select(Plant).where(Plant.run_id == run.id)).all()] + [p.strain_id for p in created]
+        run.name = _auto_name(session, ids, run.start_date, exclude_id=run.id)
+        session.add(run)
+    return created
+
+
+@api.post("/runs/{rid}/seeds")
+def add_seeds(rid: int, data: dict, session: Session = S):
+    """Neue Samen in einen Durchgang eintragen (nach Neustart oder neuem Durchgang)."""
+    run = _get(session, Run, rid)
+    created = _add_seeds(session, run, data)
+    if not created:
+        raise HTTPException(400, "Keine Samen angegeben")
+    session.commit()
+    session.refresh(run)
+    legal = services.legal_status(session)
+    out = {"run": run.model_dump(mode="json"),
+           "plants": [p.model_dump(mode="json") for p in session.exec(select(Plant).where(Plant.run_id == rid)).all()]}
+    if legal["status"] == "ueber":
+        out["warning"] = (f"Achtung: {legal['living_plants']} lebende Pflanzen, erlaubt sind {legal['plant_limit']} "
+                          f"({legal['adults']} Erwachsene × 3 nach KCanG).")
+    return out
+
+
 @api.post("/runs/{rid}/abort")
 def abort_run(rid: int, data: dict, session: Session = S):
     """Ganzen Durchgang abbrechen. Optional direkt neu starten: gleiche Einstellungen,
@@ -210,7 +286,10 @@ def abort_run(rid: int, data: dict, session: Session = S):
     out: dict[str, Any] = {"aborted": rid, "new_run": None, "plants": []}
     restart = data.get("restart")
     if restart:
-        new = Run(name=restart.get("name") or f"{run.name} (Neustart)", setup_id=run.setup_id, soil_id=run.soil_id,
+        restart = restart if isinstance(restart, dict) else {}
+        prev_strains = [p.strain_id for p in session.exec(select(Plant).where(Plant.run_id == rid)).all()]
+        new = Run(name=restart.get("name") or _auto_name(session, prev_strains, on), name_auto=not restart.get("name"),
+                  setup_id=run.setup_id, soil_id=run.soil_id,
                   water_id=run.water_id, schedule_id=run.schedule_id, start_date=on, light_hours=run.light_hours,
                   light_on_time=run.light_on_time, light_level=run.light_level, lamp_distance_cm=run.lamp_distance_cm,
                   notes=f"Neustart nach Abbruch von „{run.name}“" + (f" ({reason})" if reason else ""))
@@ -226,13 +305,7 @@ def abort_run(rid: int, data: dict, session: Session = S):
                 for t in session.exec(select(Task).where(Task.case_id == c.id)).all():
                     t.run_id = new.id
                     session.add(t)
-        soaked_at = datetime.fromisoformat(restart["soaked_at"]) if restart.get("soaked_at") else None
-        for i in range(int(restart.get("plants") or 0)):
-            p = Plant(run_id=new.id, name=f"Pflanze {i + 1}", strain_id=restart.get("strain_id"),
-                      germ_method=restart.get("germ_method"), pot_l=restart.get("pot_l"),
-                      pot_height_cm=int(restart.get("pot_height_cm") or 30), soaked_at=soaked_at,
-                      soaked_on=soaked_at.date() if soaked_at else None)
-            session.add(p)
+        _add_seeds(session, new, restart)
         session.commit()
         session.refresh(new)
         out["new_run"] = new.model_dump(mode="json")

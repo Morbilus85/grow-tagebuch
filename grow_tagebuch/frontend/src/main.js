@@ -10,6 +10,7 @@ import Climate from './views/Climate.vue'
 import Light from './views/Light.vue'
 import More from './views/More.vue'
 import RunEdit from './views/RunEdit.vue'
+import Seeds from './views/Seeds.vue'
 import Inventory from './views/Inventory.vue'
 import Schedules from './views/Schedules.vue'
 import Training from './views/Training.vue'
@@ -31,6 +32,7 @@ const router = createRouter({
     { path: '/licht', component: Light },
     { path: '/mehr', component: More },
     { path: '/run/:id', component: RunEdit },
+    { path: '/run/:id/samen', component: Seeds },
     { path: '/inventar', component: Inventory },
     { path: '/schema', component: Schedules },
     { path: '/training', component: Training },
