@@ -66,36 +66,40 @@ def _prompt(name: str, breeder: str, auto: Optional[bool]) -> str:
 Nutze bevorzugt die Herstellerseite (Datenblatt) und ergänze Erfahrungswerte von Growern (z. B. Grow-Diaries, Seedfinder).
 Es geht um einen Indoor-Grow in einem kleinen Zelt (ca. 80×80×180 cm, 20-l-Stofftöpfe, organisch mit BioBizz).
 
-Antworte am Ende mit genau einem JSON-Block (```json … ```), alle Texte auf Deutsch, unbekannte Werte als null:
-{{
-  "name": "offizieller Sortenname",
-  "breeder": "Breeder",
-  "auto": true/false,
-  "genetics": "Eltern/Kreuzung",
-  "type": "z. B. 60 % Indica / 40 % Sativa",
-  "thc": "z. B. 23 %",
-  "cbd": "z. B. < 1 %",
-  "seed_to_harvest_days": Zahl (Autos: Samen bis Ernte laut Breeder, Obergrenze) oder null,
-  "flowering_days": Zahl (Photos: Blütedauer, Obergrenze) oder null,
-  "seed_to_harvest_text": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen",
-  "grower_days": "typische tatsächliche Dauer laut Growern, z. B. 70–80 Tage",
-  "max_height_cm": Zahl (Indoor, Breeder) oder null,
-  "height_text": "z. B. Indoor 100 cm, Outdoor 130 cm",
-  "yield_indoor": "z. B. bis 500 g/m²",
-  "yield_outdoor": "z. B. bis 300 g/Pflanze",
-  "difficulty": "leicht | mittel | schwer",
-  "aroma": "Geschmack/Aroma",
-  "terpenes": "Haupt-Terpene",
-  "effect": "Wirkung",
-  "structure": "Wuchsform, Stretch, Blattbild",
-  "specials": ["Besonderheiten, z. B. schimmelanfällig, nährstoffhungrig, stark duftend"],
-  "grow_tips": ["konkrete Anbautipps für diese Sorte"],
-  "training": [{{"key": "Schlüssel aus der Liste", "rating": "top | gut | vorsicht | nein", "reason": "kurze Begründung für diese Sorte"}}]
-}}
-
-Bewerte unter "training" jede dieser Techniken (Schlüssel exakt übernehmen):
+Fasse auf Deutsch zusammen: offizieller Name, Breeder, Auto oder Photo, Genetik, Indica/Sativa-Anteil, THC, CBD,
+Samen bis Ernte bzw. Blütedauer laut Breeder und laut Growern, Höhe indoor/outdoor, Ertrag indoor/outdoor,
+Schwierigkeit, Aroma, Terpene, Wirkung, Wuchsform/Stretch, Besonderheiten, konkrete Anbautipps.
+Bewerte außerdem jede dieser Trainingstechniken für genau diese Sorte (besonders geeignet / geeignet / mit Vorsicht / ungeeignet, je kurze Begründung):
 {techniques}
 """
+
+
+_STR = {"type": ["string", "null"]}
+_INT = {"type": ["integer", "null"]}
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": _STR, "breeder": _STR, "auto": {"type": ["boolean", "null"]}, "genetics": _STR,
+        "type": {**_STR, "description": "z. B. 60 % Indica / 40 % Sativa"},
+        "thc": {**_STR, "description": "z. B. 23 %"}, "cbd": _STR,
+        "seed_to_harvest_days": {**_INT, "description": "Autos: Samen bis Ernte laut Breeder in Tagen, Obergrenze"},
+        "flowering_days": {**_INT, "description": "Photos: Blütedauer laut Breeder in Tagen, Obergrenze"},
+        "seed_to_harvest_text": {**_STR, "description": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen (Breeder)"},
+        "grower_days": {**_STR, "description": "typische tatsächliche Dauer laut Growern"},
+        "max_height_cm": {**_INT, "description": "Indoor-Höhe laut Breeder in cm"},
+        "height_text": _STR, "yield_indoor": _STR, "yield_outdoor": _STR,
+        "difficulty": {"type": ["string", "null"], "enum": ["leicht", "mittel", "schwer", None]},
+        "aroma": _STR, "terpenes": _STR, "effect": _STR,
+        "structure": {**_STR, "description": "Wuchsform, Stretch, Blattbild"},
+        "specials": {"type": "array", "items": {"type": "string"}},
+        "grow_tips": {"type": "array", "items": {"type": "string"}},
+        "training": {"type": "array", "items": {"type": "object", "properties": {
+            "key": {"type": "string", "enum": [t["key"] for t in TECHNIQUES]},
+            "rating": {"type": "string", "enum": list(RATINGS)},
+            "reason": {"type": "string"}}, "required": ["key", "rating", "reason"]}},
+    },
+    "required": ["name", "training"],
+}
 
 
 def _extract_json(text: str) -> dict:
@@ -105,14 +109,15 @@ def _extract_json(text: str) -> dict:
 
 
 async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> dict:
-    """Fragt Claude mit Websuche nach dem Steckbrief. Liefert {fields, info}."""
+    """Schritt 1: Recherche mit Websuche (Freitext + Quellen). Schritt 2: Auslesen über festes Schema
+    (Tool-Aufruf erzwingt gültiges JSON). Liefert {fields, info}."""
     key = api_key()
     if not key:
         raise RuntimeError("Kein Claude-API-Schlüssel hinterlegt (Add-on → Konfiguration → anthropic_api_key).")
+    headers = _headers(key)
     messages = [{"role": "user", "content": _prompt(name, breeder, auto)}]
     body = {"model": MODEL, "max_tokens": 4000, "messages": messages,
             "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
-    headers = _headers(key)
     texts: list[str] = []
     sources: dict[str, str] = {}
     async with httpx.AsyncClient(timeout=180) as client:
@@ -130,12 +135,25 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
             if data.get("stop_reason") != "pause_turn":
                 break
             messages.append({"role": "assistant", "content": data["content"]})
-    try:
-        d = _extract_json("\n".join(texts))
-    except (ValueError, json.JSONDecodeError) as e:
-        log.warning("Steckbrief nicht lesbar: %s", e)
+        research = "".join(texts).strip()
+        if not research:
+            raise RuntimeError("Die Recherche hat nichts geliefert – bitte noch einmal versuchen.")
+        extract = {
+            "model": MODEL, "max_tokens": 4000,
+            "tools": [{"name": "steckbrief", "description": "Sorten-Steckbrief speichern", "input_schema": SCHEMA}],
+            "tool_choice": {"type": "tool", "name": "steckbrief"},
+            "messages": [{"role": "user", "content":
+                          f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf Deutsch, "
+                          f"unbekannte Werte als null, jede Trainingstechnik genau einmal bewerten.\n\n{research}"}],
+        }
+        r = await client.post(API_URL, headers=headers, json=extract)
+        if r.status_code != 200:
+            raise RuntimeError(_error(r))
+        d = next((b.get("input") for b in r.json().get("content", []) if b.get("type") == "tool_use"), None)
+    if not isinstance(d, dict):
+        log.warning("Steckbrief nicht lesbar")
         raise RuntimeError("Die Antwort enthielt keinen lesbaren Steckbrief – bitte noch einmal versuchen.")
-    return to_strain(d, list({"url": u, "title": t} for u, t in sources.items())[:8], source="internet")
+    return to_strain(d, [{"url": u, "title": t} for u, t in sources.items()][:8], source="internet")
 
 
 def _int(v) -> Optional[int]:

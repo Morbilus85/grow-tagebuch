@@ -1,3 +1,7 @@
+## 0.7.2
+
+- Sorten-Recherche robuster: erst Websuche, dann Auslesen über ein festes Schema – kein „nicht lesbarer Steckbrief“ mehr durch Anführungszeichen im Text.
+
 ## 0.7.1
 
 - Claude-API: Anmeldung nach aktuellem Verfahren (Bearer-Token), verständliche Fehlermeldungen (ungültiger Schlüssel, kein Guthaben, Workspace).
