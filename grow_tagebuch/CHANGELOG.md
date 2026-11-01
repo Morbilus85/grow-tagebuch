@@ -1,3 +1,7 @@
+## 0.7.3
+
+- Sorten-Recherche: Auslesen über „Structured Outputs“ der Claude-API statt erzwungenem Tool (das aktuelle Modell unterstützt kein erzwungenes Tool).
+
 ## 0.7.2
 
 - Sorten-Recherche robuster: erst Websuche, dann Auslesen über ein festes Schema – kein „nicht lesbarer Steckbrief“ mehr durch Anführungszeichen im Text.

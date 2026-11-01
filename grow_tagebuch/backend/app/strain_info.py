@@ -74,32 +74,34 @@ Bewerte außerdem jede dieser Trainingstechniken für genau diese Sorte (besonde
 """
 
 
-_STR = {"type": ["string", "null"]}
-_INT = {"type": ["integer", "null"]}
+_S = {"type": "string"}
+_I = {"type": "integer"}
+# Structured Outputs: alle Felder Pflicht, unbekannt = "" bzw. 0 (kaum Union-Typen, additionalProperties false)
 SCHEMA = {
     "type": "object",
     "properties": {
-        "name": _STR, "breeder": _STR, "auto": {"type": ["boolean", "null"]}, "genetics": _STR,
-        "type": {**_STR, "description": "z. B. 60 % Indica / 40 % Sativa"},
-        "thc": {**_STR, "description": "z. B. 23 %"}, "cbd": _STR,
-        "seed_to_harvest_days": {**_INT, "description": "Autos: Samen bis Ernte laut Breeder in Tagen, Obergrenze"},
-        "flowering_days": {**_INT, "description": "Photos: Blütedauer laut Breeder in Tagen, Obergrenze"},
-        "seed_to_harvest_text": {**_STR, "description": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen (Breeder)"},
-        "grower_days": {**_STR, "description": "typische tatsächliche Dauer laut Growern"},
-        "max_height_cm": {**_INT, "description": "Indoor-Höhe laut Breeder in cm"},
-        "height_text": _STR, "yield_indoor": _STR, "yield_outdoor": _STR,
-        "difficulty": {"type": ["string", "null"], "enum": ["leicht", "mittel", "schwer", None]},
-        "aroma": _STR, "terpenes": _STR, "effect": _STR,
-        "structure": {**_STR, "description": "Wuchsform, Stretch, Blattbild"},
-        "specials": {"type": "array", "items": {"type": "string"}},
-        "grow_tips": {"type": "array", "items": {"type": "string"}},
+        "name": _S, "breeder": _S, "auto": {"type": "boolean"}, "genetics": _S,
+        "type": {**_S, "description": "z. B. 60 % Indica / 40 % Sativa"},
+        "thc": {**_S, "description": "z. B. 23 %"}, "cbd": _S,
+        "seed_to_harvest_days": {**_I, "description": "Autos: Samen bis Ernte laut Breeder in Tagen (Obergrenze), sonst 0"},
+        "flowering_days": {**_I, "description": "Photos: Blütedauer laut Breeder in Tagen (Obergrenze), sonst 0"},
+        "seed_to_harvest_text": {**_S, "description": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen (Breeder)"},
+        "grower_days": {**_S, "description": "typische tatsächliche Dauer laut Growern"},
+        "max_height_cm": {**_I, "description": "Indoor-Höhe laut Breeder in cm, unbekannt 0"},
+        "height_text": _S, "yield_indoor": _S, "yield_outdoor": _S,
+        "difficulty": {"type": "string", "enum": ["leicht", "mittel", "schwer", "unbekannt"]},
+        "aroma": _S, "terpenes": _S, "effect": _S,
+        "structure": {**_S, "description": "Wuchsform, Stretch, Blattbild"},
+        "specials": {"type": "array", "items": _S},
+        "grow_tips": {"type": "array", "items": _S},
         "training": {"type": "array", "items": {"type": "object", "properties": {
             "key": {"type": "string", "enum": [t["key"] for t in TECHNIQUES]},
             "rating": {"type": "string", "enum": list(RATINGS)},
-            "reason": {"type": "string"}}, "required": ["key", "rating", "reason"]}},
+            "reason": _S}, "required": ["key", "rating", "reason"], "additionalProperties": False}},
     },
-    "required": ["name", "training"],
+    "additionalProperties": False,
 }
+SCHEMA["required"] = list(SCHEMA["properties"])
 
 
 def _extract_json(text: str) -> dict:
@@ -139,17 +141,20 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
         if not research:
             raise RuntimeError("Die Recherche hat nichts geliefert – bitte noch einmal versuchen.")
         extract = {
-            "model": MODEL, "max_tokens": 4000,
-            "tools": [{"name": "steckbrief", "description": "Sorten-Steckbrief speichern", "input_schema": SCHEMA}],
-            "tool_choice": {"type": "tool", "name": "steckbrief"},
+            "model": MODEL, "max_tokens": 8000,
+            "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
             "messages": [{"role": "user", "content":
                           f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf Deutsch, "
-                          f"unbekannte Werte als null, jede Trainingstechnik genau einmal bewerten.\n\n{research}"}],
+                          f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten.\n\n{research}"}],
         }
         r = await client.post(API_URL, headers=headers, json=extract)
         if r.status_code != 200:
             raise RuntimeError(_error(r))
-        d = next((b.get("input") for b in r.json().get("content", []) if b.get("type") == "tool_use"), None)
+        out = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+        try:
+            d = json.loads(out)
+        except json.JSONDecodeError:
+            d = None
     if not isinstance(d, dict):
         log.warning("Steckbrief nicht lesbar")
         raise RuntimeError("Die Antwort enthielt keinen lesbaren Steckbrief – bitte noch einmal versuchen.")
@@ -158,7 +163,8 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
 
 def _int(v) -> Optional[int]:
     try:
-        return int(round(float(v))) if v not in (None, "") else None
+        n = int(round(float(v))) if v not in (None, "") else None
+        return n if n else None
     except (TypeError, ValueError):
         return None
 
@@ -178,7 +184,7 @@ def to_strain(d: dict, sources: list, source: str) -> dict:
     }.items() if v not in (None, "")}
     info = {k: d.get(k) for k in ("type", "thc", "cbd", "seed_to_harvest_text", "grower_days", "height_text",
                                   "yield_indoor", "yield_outdoor", "difficulty", "aroma", "terpenes", "effect",
-                                  "structure") if d.get(k)}
+                                  "structure") if d.get(k) and d.get(k) != "unbekannt"}
     info["specials"] = [s for s in (d.get("specials") or []) if s]
     info["grow_tips"] = [s for s in (d.get("grow_tips") or []) if s]
     info["training"] = training
