@@ -29,6 +29,36 @@ def api_key() -> str:
         return ""
 
 
+def _headers(key: str) -> dict:
+    return {"authorization": f"Bearer {key}", "anthropic-version": "2023-06-01", "content-type": "application/json"}
+
+
+def _error(r: httpx.Response) -> str:
+    try:
+        msg = r.json().get("error", {}).get("message", "")
+    except ValueError:
+        msg = r.text[:200]
+    hints = {401: "Schlüssel ungültig oder abgelaufen.", 403: "Schlüssel hat keine Berechtigung.",
+             400: "Anfrage abgelehnt – ist der Schlüssel auf einen Workspace beschränkt?",
+             402: "Kein Guthaben – in der Console unter Billing aufladen.", 429: "Zu viele Anfragen – kurz warten."}
+    if "credit" in msg.lower() or "balance" in msg.lower():
+        return "Kein Guthaben – in der Claude Console unter Billing aufladen."
+    return f"{hints.get(r.status_code, 'Claude-API-Fehler')} ({r.status_code}: {msg})"
+
+
+async def test_key() -> dict:
+    """Mini-Anfrage, um Schlüssel, Workspace und Guthaben zu prüfen."""
+    key = api_key()
+    if not key:
+        return {"ok": False, "message": "Kein Schlüssel eingetragen."}
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(API_URL, headers=_headers(key),
+                              json={"model": MODEL, "max_tokens": 5, "messages": [{"role": "user", "content": "Antworte nur mit OK."}]})
+    if r.status_code == 200:
+        return {"ok": True, "message": "Schlüssel funktioniert."}
+    return {"ok": False, "message": _error(r)}
+
+
 def _prompt(name: str, breeder: str, auto: Optional[bool]) -> str:
     techniques = "\n".join(f"- {t['key']}: {t['name']}" for t in TECHNIQUES)
     typ = "Autoflower" if auto else ("photoperiodisch" if auto is False else "Typ unbekannt")
@@ -82,14 +112,14 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
     messages = [{"role": "user", "content": _prompt(name, breeder, auto)}]
     body = {"model": MODEL, "max_tokens": 4000, "messages": messages,
             "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
-    headers = {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+    headers = _headers(key)
     texts: list[str] = []
     sources: dict[str, str] = {}
     async with httpx.AsyncClient(timeout=180) as client:
         for _ in range(4):  # pause_turn: Antwort fortsetzen lassen
             r = await client.post(API_URL, headers=headers, json=body)
             if r.status_code != 200:
-                raise RuntimeError(f"Claude-API: {r.status_code} {r.text[:300]}")
+                raise RuntimeError(_error(r))
             data = r.json()
             for block in data.get("content", []):
                 if block.get("type") == "text":

@@ -10,6 +10,8 @@ const s = ref(null)
 const edit = ref(null)
 const busy = ref(false)
 const err = ref('')
+const keyTest = ref(null)
+async function testKey() { keyTest.value = { ok: true, message: 'Teste …' }; keyTest.value = await api.post('ai/test') }
 
 async function load() { s.value = await api.get(`strains/${route.params.id}`) }
 async function refresh() {
@@ -52,6 +54,10 @@ onMounted(load)
       <div class="row">
         <button class="primary" :disabled="busy || !s.lookup_available" @click="refresh">{{ busy ? 'Recherchiere … (bis zu 1 Minute)' : 'Infos aus dem Internet holen' }}</button>
         <button class="ghost" @click="edit ? (edit = null) : startEdit()">{{ edit ? 'Schließen' : 'Bearbeiten' }}</button>
+      </div>
+      <div v-if="s.lookup_available" class="row">
+        <button class="ghost small" @click="testKey">API-Schlüssel testen</button>
+        <span v-if="keyTest" class="small" :style="{ color: keyTest.ok ? 'var(--leaf)' : 'var(--alarm)' }">{{ keyTest.message }}</span>
       </div>
       <p v-if="!s.lookup_available" class="small muted">Für den Internet-Abruf wird ein Claude-API-Schlüssel gebraucht: Home Assistant → Einstellungen → Add-ons → Grow-Tagebuch → Konfiguration → anthropic_api_key.</p>
       <p v-if="err" class="note bad">{{ err }}</p>

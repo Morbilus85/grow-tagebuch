@@ -744,6 +744,12 @@ def get_strain(sid: int, session: Session = S):
     return _strain_dict(session, _get(session, Strain, sid))
 
 
+@api.post("/ai/test")
+async def ai_test():
+    from . import strain_info
+    return await strain_info.test_key()
+
+
 @api.post("/strains/lookup")
 async def strain_lookup(data: dict):
     """Steckbrief aus dem Internet holen (ohne zu speichern) – für das Formular „Neue Sorte“."""

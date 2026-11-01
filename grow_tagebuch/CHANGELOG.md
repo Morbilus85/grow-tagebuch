@@ -1,3 +1,8 @@
+## 0.7.1
+
+- Claude-API: Anmeldung nach aktuellem Verfahren (Bearer-Token), verständliche Fehlermeldungen (ungültiger Schlüssel, kein Guthaben, Workspace).
+- Sortenseite: Button „API-Schlüssel testen“.
+
 ## 0.7.0
 
 - Sorten-Steckbrief (Mehr → Sorten): Typ, Genetik, THC/CBD, Samen bis Ernte (Breeder und Erfahrungswerte), Höhe, Ertrag, Schwierigkeit, Wuchs, Aroma, Wirkung, Besonderheiten, Anbautipps, Quellen.
