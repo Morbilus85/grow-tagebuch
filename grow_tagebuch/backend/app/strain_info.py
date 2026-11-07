@@ -130,7 +130,7 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
         raise RuntimeError("Kein Claude-API-Schlüssel hinterlegt (Add-on → Konfiguration → anthropic_api_key).")
     headers = _headers(key)
     messages = [{"role": "user", "content": _prompt(name, breeder, auto)}]
-    body = {"model": MODEL, "max_tokens": 4000, "messages": messages,
+    body = {"model": MODEL, "max_tokens": 6000, "messages": messages,
             "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
     texts: list[str] = []
     sources: dict[str, str] = {}

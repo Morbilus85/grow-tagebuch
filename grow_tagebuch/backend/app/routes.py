@@ -1,6 +1,7 @@
 """REST-API (alle Pfade relativ, damit sie hinter HA-Ingress funktionieren)."""
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import uuid
@@ -762,22 +763,44 @@ async def strain_lookup(data: dict):
         raise HTTPException(502, str(e))
 
 
+_bg_tasks: set = set()
+
+
+async def _refresh_strain(sid: int) -> None:
+    """Recherche + Speichern unabhängig von der HTTP-Verbindung (HA-Ingress trennt nach ca. 30 s)."""
+    from . import strain_info
+    from .db import engine
+    with Session(engine) as session:
+        st = _get(session, Strain, sid)
+        name, breeder, auto = st.name, st.breeder, st.auto
+    try:
+        r = await strain_info.lookup(name, breeder, auto)
+    except Exception:
+        log.exception("Sorten-Recherche für %s fehlgeschlagen", name)
+        raise
+    with Session(engine) as session:
+        st = _get(session, Strain, sid)
+        for k in ("genetics", "seed_to_harvest_days", "flowering_days", "max_height_cm"):
+            if r["fields"].get(k) not in (None, ""):
+                setattr(st, k, r["fields"][k])
+        st.info = r["info"]
+        session.add(st)
+        session.commit()
+    log.info("Sorten-Recherche für %s gespeichert", name)
+
+
 @api.post("/strains/{sid}/refresh")
 async def strain_refresh(sid: int, session: Session = S):
-    from . import strain_info
-    st = _get(session, Strain, sid)
+    _get(session, Strain, sid)
+    task = asyncio.ensure_future(_refresh_strain(sid))
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
     try:
-        r = await strain_info.lookup(st.name, st.breeder, st.auto)
+        await asyncio.shield(task)  # Abbruch der Anfrage beendet die Recherche nicht
     except RuntimeError as e:
         raise HTTPException(502, str(e))
-    for k in ("genetics", "seed_to_harvest_days", "flowering_days", "max_height_cm"):
-        if r["fields"].get(k) not in (None, ""):
-            setattr(st, k, r["fields"][k])
-    st.info = r["info"]
-    session.add(st)
-    session.commit()
-    session.refresh(st)
-    return _strain_dict(session, st)
+    session.expire_all()
+    return _strain_dict(session, _get(session, Strain, sid))
 
 
 @api.post("/strains")

@@ -13,7 +13,7 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Logik in `logic/` (phases, feeding, light, space, climate, training), Kataloge `training_data.py`, `germination_data.py`,
   `living_soil_data.py`, `pest_data.py`; Sorten-Recherche `strain_info.py` (Claude-API, Websuche → Structured Outputs).
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.6).
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.7).
 
 ## Release-Ablauf (immer so)
 

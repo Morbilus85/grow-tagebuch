@@ -1,3 +1,8 @@
+## 0.7.7
+
+- Sorten neu recherchieren: läuft jetzt zu Ende und wird gespeichert, auch wenn HA die Verbindung nach 30 s trennt.
+  Fehler landen im Add-on-Log.
+
 ## 0.7.6
 
 - Sorten-Recherche: Dauer und Höhe werden je Quelle einzeln erfasst (Breeder, Shop, Datenbank, Grower/Forum, mit Kontext).
