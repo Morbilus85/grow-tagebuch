@@ -1,3 +1,7 @@
+## 0.7.9
+
+- Sorten-Recherche: leere Websuche (kommt sporadisch vor) wird einmal automatisch wiederholt.
+
 ## 0.7.8
 
 - Sortenwerte: Hersteller-Seite (Breeder, Shops, Datenbanken – oft abgeschriebenes Datenblatt) und Grower-Seite werden

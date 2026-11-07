@@ -130,27 +130,32 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
     if not key:
         raise RuntimeError("Kein Claude-API-Schlüssel hinterlegt (Add-on → Konfiguration → anthropic_api_key).")
     headers = _headers(key)
-    messages = [{"role": "user", "content": _prompt(name, breeder, auto)}]
-    body = {"model": MODEL, "max_tokens": 6000, "messages": messages,
-            "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
     texts: list[str] = []
     sources: dict[str, str] = {}
     async with httpx.AsyncClient(timeout=180) as client:
-        for _ in range(4):  # pause_turn: Antwort fortsetzen lassen
-            r = await client.post(API_URL, headers=headers, json=body)
-            if r.status_code != 200:
-                raise RuntimeError(_error(r))
-            data = r.json()
-            for block in data.get("content", []):
-                if block.get("type") == "text":
-                    texts.append(block.get("text", ""))
-                    for c in block.get("citations") or []:
-                        if c.get("url"):
-                            sources.setdefault(c["url"], c.get("title") or c["url"])
-            if data.get("stop_reason") != "pause_turn":
+        for attempt in range(2):  # leere Websuche kommt sporadisch vor → einmal wiederholen
+            messages = [{"role": "user", "content": _prompt(name, breeder, auto)}]
+            body = {"model": MODEL, "max_tokens": 6000, "messages": messages,
+                    "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
+            texts.clear()
+            for _ in range(4):  # pause_turn: Antwort fortsetzen lassen
+                r = await client.post(API_URL, headers=headers, json=body)
+                if r.status_code != 200:
+                    raise RuntimeError(_error(r))
+                data = r.json()
+                for block in data.get("content", []):
+                    if block.get("type") == "text":
+                        texts.append(block.get("text", ""))
+                        for c in block.get("citations") or []:
+                            if c.get("url"):
+                                sources.setdefault(c["url"], c.get("title") or c["url"])
+                if data.get("stop_reason") != "pause_turn":
+                    break
+                messages.append({"role": "assistant", "content": data["content"]})
+            research = "".join(texts).strip()
+            if research:
                 break
-            messages.append({"role": "assistant", "content": data["content"]})
-        research = "".join(texts).strip()
+            log.warning("Recherche zu %s leer (Versuch %d, stop_reason %s)", name, attempt + 1, data.get("stop_reason"))
         if not research:
             raise RuntimeError("Die Recherche hat nichts geliefert – bitte noch einmal versuchen.")
         extract = {
