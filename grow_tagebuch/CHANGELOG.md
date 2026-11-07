@@ -1,3 +1,9 @@
+## 0.7.6
+
+- Sorten-Recherche: Dauer und Höhe werden je Quelle einzeln erfasst (Breeder, Shop, Datenbank, Grower/Forum, mit Kontext).
+  Die App bildet daraus selbst den Mittelwert (Mitte je Spanne, alle Quellen gleich gewichtet) und rechnet damit.
+- Steckbrief: neuer Abschnitt „wer sagt was“ mit allen Angaben und dem Mittelwert.
+
 ## 0.7.5
 
 - Sorten-Recherche: realistische Werte = Mitte der üblichen Grower-Spanne, Ausreißer werden ignoriert (vorher oberes Ende,

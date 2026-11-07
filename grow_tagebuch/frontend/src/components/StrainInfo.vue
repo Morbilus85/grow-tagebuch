@@ -36,6 +36,16 @@ const facts = computed(() => {
   ].filter(([, v]) => v)
 })
 const shownFacts = computed(() => props.compact ? facts.value.filter(([k]) => ['Typ', 'Samen bis Ernte', 'Blüte', 'Laut Growern', 'App rechnet mit', 'Höhe', 'Schwierigkeit'].includes(k)) : facts.value)
+const KIND = { breeder: 'Breeder', shop: 'Shop', datenbank: 'Datenbank', grower: 'Grower/Forum' }
+const range = (c, u) => (c.min === c.max ? `${c.min}` : `${c.min}–${c.max}`) + ` ${u}`
+const claimGroups = computed(() => {
+  const s = props.strain || {}
+  return [
+    { title: s.auto === false ? 'Blütedauer' : 'Samen bis Ernte', unit: 'Tage', list: i.value.duration_claims || [],
+      mean: s.auto === false ? s.flowering_days : s.seed_to_harvest_days },
+    { title: 'Höhe indoor', unit: 'cm', list: i.value.height_claims || [], mean: s.max_height_cm },
+  ].filter((g) => g.list.length)
+})
 const training = computed(() => (props.strain?.training || []).filter((t) => !props.compact || t.rating === 'top' || t.rating === 'gut'))
 </script>
 
@@ -44,6 +54,19 @@ const training = computed(() => (props.strain?.training || []).filter((t) => !pr
     <dl class="facts">
       <template v-for="[k, v] in shownFacts" :key="k"><dt>{{ k }}</dt><dd>{{ v }}</dd></template>
     </dl>
+
+    <div v-for="g in (compact ? [] : claimGroups)" :key="g.title">
+      <h4>{{ g.title }} – wer sagt was</h4>
+      <div class="claims">
+        <div v-for="(c, n) in g.list" :key="n" class="claim">
+          <span><strong>{{ c.source }}</strong> <span class="small muted">{{ KIND[c.kind] }}</span>
+            <br v-if="c.note" /><span v-if="c.note" class="small muted">{{ c.note }}</span></span>
+          <span class="val">{{ range(c, g.unit) }}</span>
+        </div>
+        <div class="claim mean"><span><strong>Mittelwert</strong> <span class="small muted">aus {{ g.list.length }} Angaben, rechnet die App</span></span>
+          <span class="val">{{ g.mean }} {{ g.unit }}</span></div>
+      </div>
+    </div>
 
     <div v-if="!compact && i.specials?.length">
       <h4>Besonderheiten</h4>
@@ -83,6 +106,10 @@ h4 { font: 600 .95rem var(--cond); margin: 0 0 4px; }
 ul { margin: 0; padding-left: 18px; }
 li { margin: 2px 0; }
 .chips { gap: 6px; }
+.claims { display: flex; flex-direction: column; }
+.claim { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.claim .val { flex: none; font-variant-numeric: tabular-nums; }
+.claim.mean { border-bottom: 0; border-top: 2px solid var(--line); }
 .trows { display: flex; flex-direction: column; }
 .trow { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); text-decoration: none; }
 .trow:last-child { border-bottom: 0; }

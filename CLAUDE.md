@@ -13,7 +13,7 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Logik in `logic/` (phases, feeding, light, space, climate, training), Kataloge `training_data.py`, `germination_data.py`,
   `living_soil_data.py`, `pest_data.py`; Sorten-Recherche `strain_info.py` (Claude-API, Websuche → Structured Outputs).
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.5).
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.6).
 
 ## Release-Ablauf (immer so)
 
@@ -32,8 +32,9 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   HA-Werkzeuge laufen über Kilians Desktop-App (`mcp__remote-devices__Home_Assistant__*`, per ToolSearch laden) – nur
   erreichbar, wenn der Chat in der Desktop-App offen ist. Der Browser-Bereich taugt für HA nicht (lädt nicht).
 - Sorten-Recherche (Structured Outputs) läuft gegen die echte API – bestätigt am 07.11.2026 (Blueberry Automatic).
-  Ab 0.7.4/0.7.5: `seed_to_harvest_days`/`flowering_days`/`max_height_cm` = typische Grower-Werte (Mitte der Spanne, Rechengrundlage),
-  Breeder-Angaben stehen in `info.breeder_values`. Steckbrief zeigt „App rechnet mit“.
+  Ab 0.7.6: Recherche liefert `duration_claims`/`height_claims` (je Quelle min/max, Art, Kontext). `strain_info._claims`
+  mittelt (Mitte je Spanne, gleich gewichtet) → `seed_to_harvest_days`/`flowering_days`/`max_height_cm`. Breeder-Werte in
+  `info.breeder_values`. Steckbrief zeigt „wer sagt was“ + Mittelwert.
 - Regeln: App liest HA nur, schaltet nie. Automationen „Growzelt-Heizung“ und „Heizmatte“ hat Kilian bewusst deaktiviert –
   nicht ohne Rückfrage aktivieren. Neue HA-Automationen nur deaktiviert anlegen; größere Änderungen vorher vorschlagen.
 - Sensoren: Zelt `sensor.homegrow_probe_sensor_sonden_*` (Temperatur, Luftfeuchtigkeit, VPD), Lampe Stufe
