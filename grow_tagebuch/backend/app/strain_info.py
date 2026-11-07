@@ -135,7 +135,7 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
     async with httpx.AsyncClient(timeout=180) as client:
         for attempt in range(2):  # leere Websuche kommt sporadisch vor → einmal wiederholen
             messages = [{"role": "user", "content": _prompt(name, breeder, auto)}]
-            body = {"model": MODEL, "max_tokens": 6000, "messages": messages,
+            body = {"model": MODEL, "max_tokens": 16000, "messages": messages,
                     "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
             texts.clear()
             for _ in range(4):  # pause_turn: Antwort fortsetzen lassen

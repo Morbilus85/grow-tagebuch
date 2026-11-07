@@ -1,3 +1,8 @@
+## 0.7.10
+
+- Sorten-Recherche: Antwortlimit der Websuche auf 16 000 Token erhöht – bei vielen Einzelquellen war es vorher aufgebraucht,
+  bevor Text kam.
+
 ## 0.7.9
 
 - Sorten-Recherche: leere Websuche (kommt sporadisch vor) wird einmal automatisch wiederholt.
