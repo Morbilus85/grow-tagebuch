@@ -67,7 +67,8 @@ Nutze bevorzugt die Herstellerseite (Datenblatt) und ergänze Erfahrungswerte vo
 Es geht um einen Indoor-Grow in einem kleinen Zelt (ca. 80×80×180 cm, 20-l-Stofftöpfe, organisch mit BioBizz).
 
 Fasse auf Deutsch zusammen: offizieller Name, Breeder, Auto oder Photo, Genetik, Indica/Sativa-Anteil, THC, CBD,
-Samen bis Ernte bzw. Blütedauer laut Breeder und laut Growern, Höhe indoor/outdoor, Ertrag indoor/outdoor,
+Samen bis Ernte bzw. Blütedauer laut Breeder und laut Growern (realistische Tageszahl), Höhe indoor/outdoor laut Breeder
+und laut Growern (realistische Endhöhe in cm), Ertrag indoor/outdoor,
 Schwierigkeit, Aroma, Terpene, Wirkung, Wuchsform/Stretch, Besonderheiten, konkrete Anbautipps.
 Bewerte außerdem jede dieser Trainingstechniken für genau diese Sorte (besonders geeignet / geeignet / mit Vorsicht / ungeeignet, je kurze Begründung):
 {techniques}
@@ -85,9 +86,14 @@ SCHEMA = {
         "thc": {**_S, "description": "z. B. 23 %"}, "cbd": _S,
         "seed_to_harvest_days": {**_I, "description": "Autos: Samen bis Ernte laut Breeder in Tagen (Obergrenze), sonst 0"},
         "flowering_days": {**_I, "description": "Photos: Blütedauer laut Breeder in Tagen (Obergrenze), sonst 0"},
+        "real_seed_to_harvest_days": {**_I, "description": "Autos: realistische Dauer Samen bis Ernte in Tagen, wie sie "
+                                      "Grower-Berichte typischerweise zeigen (eher oberes Ende), sonst 0"},
+        "real_flowering_days": {**_I, "description": "Photos: realistische Blütedauer in Tagen laut Growern, sonst 0"},
         "seed_to_harvest_text": {**_S, "description": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen (Breeder)"},
         "grower_days": {**_S, "description": "typische tatsächliche Dauer laut Growern"},
         "max_height_cm": {**_I, "description": "Indoor-Höhe laut Breeder in cm, unbekannt 0"},
+        "real_height_cm": {**_I, "description": "realistische Indoor-Endhöhe in cm laut Grower-Berichten "
+                           "(eher oberes Ende), unbekannt 0"},
         "height_text": _S, "yield_indoor": _S, "yield_outdoor": _S,
         "difficulty": {"type": "string", "enum": ["leicht", "mittel", "schwer", "unbekannt"]},
         "aroma": _S, "terpenes": _S, "effect": _S,
@@ -170,7 +176,10 @@ def _int(v) -> Optional[int]:
 
 
 def to_strain(d: dict, sources: list, source: str) -> dict:
-    """Steckbrief-Dict → Felder für das Strain-Modell + info-JSON."""
+    """Steckbrief-Dict → Felder für das Strain-Modell + info-JSON.
+    Gerechnet wird mit den realistischen Werten (Grower), die Breeder-Angaben landen nur im Steckbrief."""
+    breeder = {"days": _int(d.get("seed_to_harvest_days")), "flowering_days": _int(d.get("flowering_days")),
+               "height_cm": _int(d.get("max_height_cm"))}
     valid = {t["key"] for t in TECHNIQUES}
     training = [t for t in (d.get("training") or []) if isinstance(t, dict) and t.get("key") in valid
                 and t.get("rating") in RATINGS]
@@ -178,13 +187,14 @@ def to_strain(d: dict, sources: list, source: str) -> dict:
         "name": d.get("name"), "breeder": d.get("breeder"),
         "auto": d.get("auto") if isinstance(d.get("auto"), bool) else None,
         "genetics": d.get("genetics"),
-        "seed_to_harvest_days": _int(d.get("seed_to_harvest_days")),
-        "flowering_days": _int(d.get("flowering_days")),
-        "max_height_cm": _int(d.get("max_height_cm")),
+        "seed_to_harvest_days": _int(d.get("real_seed_to_harvest_days")) or breeder["days"],
+        "flowering_days": _int(d.get("real_flowering_days")) or breeder["flowering_days"],
+        "max_height_cm": _int(d.get("real_height_cm")) or breeder["height_cm"],
     }.items() if v not in (None, "")}
     info = {k: d.get(k) for k in ("type", "thc", "cbd", "seed_to_harvest_text", "grower_days", "height_text",
                                   "yield_indoor", "yield_outdoor", "difficulty", "aroma", "terpenes", "effect",
                                   "structure") if d.get(k) and d.get(k) != "unbekannt"}
+    info["breeder_values"] = {k: v for k, v in breeder.items() if v}
     info["specials"] = [s for s in (d.get("specials") or []) if s]
     info["grow_tips"] = [s for s in (d.get("grow_tips") or []) if s]
     info["training"] = training

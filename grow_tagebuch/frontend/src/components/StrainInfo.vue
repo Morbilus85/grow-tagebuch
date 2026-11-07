@@ -8,8 +8,15 @@ const RCLASS = { top: 'ok', gut: '', vorsicht: 'warn', nein: 'bad' }
 const duration = computed(() => {
   const s = props.strain
   if (!s) return null
-  const breeder = i.value.seed_to_harvest_text || (s.auto ? (s.seed_to_harvest_days && `${s.seed_to_harvest_days} Tage`) : (s.flowering_days && `${s.flowering_days} Tage Blüte`))
-  return breeder
+  const b = i.value.breeder_values || {}
+  return i.value.seed_to_harvest_text || (s.auto ? (b.days && `${b.days} Tage (Breeder)`) : (b.flowering_days && `${b.flowering_days} Tage Blüte (Breeder)`))
+})
+// Werte, mit denen die App Phasen, Erntefenster und Platz rechnet (realistisch, von Hand änderbar)
+const calc = computed(() => {
+  const s = props.strain
+  if (!s) return null
+  const d = s.auto ? (s.seed_to_harvest_days && `${s.seed_to_harvest_days} Tage`) : (s.flowering_days && `${s.flowering_days} Tage Blüte`)
+  return [d, s.max_height_cm && `${s.max_height_cm} cm`].filter(Boolean).join(', ')
 })
 const facts = computed(() => {
   const s = props.strain || {}
@@ -19,6 +26,7 @@ const facts = computed(() => {
     ['THC / CBD', [i.value.thc, i.value.cbd].filter(Boolean).join(' / ')],
     [s.auto ? 'Samen bis Ernte' : 'Blüte', duration.value],
     ['Laut Growern', i.value.grower_days],
+    ['App rechnet mit', calc.value],
     ['Höhe', i.value.height_text || (s.max_height_cm && `bis ${s.max_height_cm} cm`)],
     ['Ertrag', [i.value.yield_indoor && `Indoor ${i.value.yield_indoor}`, i.value.yield_outdoor && `Outdoor ${i.value.yield_outdoor}`].filter(Boolean).join(', ')],
     ['Schwierigkeit', i.value.difficulty],
@@ -27,7 +35,7 @@ const facts = computed(() => {
     ['Wirkung', i.value.effect],
   ].filter(([, v]) => v)
 })
-const shownFacts = computed(() => props.compact ? facts.value.filter(([k]) => ['Typ', 'Samen bis Ernte', 'Blüte', 'Laut Growern', 'Höhe', 'Schwierigkeit'].includes(k)) : facts.value)
+const shownFacts = computed(() => props.compact ? facts.value.filter(([k]) => ['Typ', 'Samen bis Ernte', 'Blüte', 'Laut Growern', 'App rechnet mit', 'Höhe', 'Schwierigkeit'].includes(k)) : facts.value)
 const training = computed(() => (props.strain?.training || []).filter((t) => !props.compact || t.rating === 'top' || t.rating === 'gut'))
 </script>
 

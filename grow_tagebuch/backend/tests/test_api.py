@@ -176,6 +176,12 @@ def test_strain_info(monkeypatch):
     parsed = strain_info.to_strain(strain_info._extract_json(raw), [{"url": "https://x", "title": "X"}], "internet")
     assert parsed["fields"]["seed_to_harvest_days"] == 63 and len(parsed["info"]["training"]) == 2
 
+    # Realistische Grower-Werte haben Vorrang, Breeder-Angaben bleiben im Steckbrief
+    real = strain_info.to_strain({"seed_to_harvest_days": 63, "real_seed_to_harvest_days": 75, "max_height_cm": 75,
+                                  "real_height_cm": 0, "flowering_days": 0}, [], "internet")
+    assert real["fields"]["seed_to_harvest_days"] == 75 and real["fields"]["max_height_cm"] == 75
+    assert real["info"]["breeder_values"] == {"days": 63, "height_cm": 75}
+
     async def fake(name, breeder="", auto=None):
         return parsed
     with TestClient(app) as c:

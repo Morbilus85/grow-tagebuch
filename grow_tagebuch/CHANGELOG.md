@@ -1,3 +1,10 @@
+## 0.7.4
+
+- Sorten-Recherche: Die App rechnet jetzt mit realistischen Werten aus Grower-Berichten (Dauer, Endhöhe) statt mit den
+  Breeder-Bestwerten. Die Breeder-Angaben bleiben im Steckbrief sichtbar.
+- Steckbrief zeigt neu „App rechnet mit“ – die Werte für Phasen, Erntefenster und Platzberechnung.
+- Bestehende Sorten: „Infos aus dem Internet holen“ einmal neu ausführen, damit die realistischen Werte übernommen werden.
+
 ## 0.7.3
 
 - Sorten-Recherche: Auslesen über „Structured Outputs“ der Claude-API statt erzwungenem Tool (das aktuelle Modell unterstützt kein erzwungenes Tool).
