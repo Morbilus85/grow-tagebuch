@@ -38,13 +38,15 @@ const facts = computed(() => {
 const shownFacts = computed(() => props.compact ? facts.value.filter(([k]) => ['Typ', 'Samen bis Ernte', 'Blüte', 'Laut Growern', 'App rechnet mit', 'Höhe', 'Schwierigkeit'].includes(k)) : facts.value)
 const KIND = { breeder: 'Breeder', shop: 'Shop', datenbank: 'Datenbank', grower: 'Grower/Forum' }
 const range = (c, u) => (c.min === c.max ? `${c.min}` : `${c.min}–${c.max}`) + ` ${u}`
+const avg = (l) => l.length ? Math.round(l.reduce((a, c) => a + (c.min + c.max) / 2, 0) / l.length) : null
 const claimGroups = computed(() => {
   const s = props.strain || {}
   return [
     { title: s.auto === false ? 'Blütedauer' : 'Samen bis Ernte', unit: 'Tage', list: i.value.duration_claims || [],
       mean: s.auto === false ? s.flowering_days : s.seed_to_harvest_days },
     { title: 'Höhe indoor', unit: 'cm', list: i.value.height_claims || [], mean: s.max_height_cm },
-  ].filter((g) => g.list.length)
+  ].filter((g) => g.list.length).map((g) => ({ ...g,
+    maker: avg(g.list.filter((c) => c.kind !== 'grower')), grower: avg(g.list.filter((c) => c.kind === 'grower')) }))
 })
 const training = computed(() => (props.strain?.training || []).filter((t) => !props.compact || t.rating === 'top' || t.rating === 'gut'))
 </script>
@@ -63,7 +65,8 @@ const training = computed(() => (props.strain?.training || []).filter((t) => !pr
             <br v-if="c.note" /><span v-if="c.note" class="small muted">{{ c.note }}</span></span>
           <span class="val">{{ range(c, g.unit) }}</span>
         </div>
-        <div class="claim mean"><span><strong>Mittelwert</strong> <span class="small muted">aus {{ g.list.length }} Angaben, rechnet die App</span></span>
+        <div class="claim mean"><span class="small muted">Ø Hersteller-Seite {{ g.maker ?? '–' }} {{ g.unit }} · Ø Grower {{ g.grower ?? '–' }} {{ g.unit }}</span></div>
+        <div class="claim"><span><strong>Mittelwert</strong> <span class="small muted">beide Seiten 50/50, rechnet die App</span></span>
           <span class="val">{{ g.mean }} {{ g.unit }}</span></div>
       </div>
     </div>

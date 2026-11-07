@@ -1,3 +1,9 @@
+## 0.7.8
+
+- Sortenwerte: Hersteller-Seite (Breeder, Shops, Datenbanken – oft abgeschriebenes Datenblatt) und Grower-Seite werden
+  getrennt gemittelt, dann 50/50. Kopien des Datenblatts drücken den Wert nicht mehr Richtung Breeder.
+- Recherche fragt Endhöhen je Quelle gezielt ab. Steckbrief zeigt beide Seiten-Durchschnitte.
+
 ## 0.7.7
 
 - Sorten neu recherchieren: läuft jetzt zu Ende und wird gespeichert, auch wenn HA die Verbindung nach 30 s trennt.

@@ -69,7 +69,8 @@ Es geht um einen Indoor-Grow in einem kleinen Zelt (ca. 80×80×180 cm, 20-l-Sto
 Fasse auf Deutsch zusammen: offizieller Name, Breeder, Auto oder Photo, Genetik, Indica/Sativa-Anteil, THC, CBD,
 Samen bis Ernte bzw. Blütedauer und Indoor-Höhe: Halte für BEIDE Werte jede Quelle einzeln fest – Breeder, Seedbanks/Shops,
 Datenbanken (Seedfinder, Leafly), einzelne Grow-Diaries und Forenberichte – jeweils mit Quelle und konkreter Zahl bzw. Spanne
-(Tage bzw. cm) und kurzem Kontext (z. B. „Gießfehler“, „Licht 18/6“). Möglichst 4–8 Angaben je Wert. Ertrag indoor/outdoor,
+(Tage bzw. cm) und kurzem Kontext (z. B. „Gießfehler“, „Licht 18/6“). Möglichst 4–8 Angaben je Wert, bei der Höhe
+gezielt nach Endhöhen in Grow-Diaries suchen (z. B. „85 days – 97 cm“). Ertrag indoor/outdoor,
 Schwierigkeit, Aroma, Terpene, Wirkung, Wuchsform/Stretch, Besonderheiten, konkrete Anbautipps.
 Bewerte außerdem jede dieser Trainingstechniken für genau diese Sorte (besonders geeignet / geeignet / mit Vorsicht / ungeeignet, je kurze Begründung):
 {techniques}
@@ -157,7 +158,9 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
             "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
             "messages": [{"role": "user", "content":
                           f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf Deutsch, "
-                          f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten.\n\n{research}"}],
+                          f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten. "
+                          f"duration_claims und height_claims mit jeder Einzelangabe aus der Recherche füllen "
+                          f"(auch Höhen, die nebenbei in Diaries genannt werden).\n\n{research}"}],
         }
         r = await client.post(API_URL, headers=headers, json=extract)
         if r.status_code != 200:
@@ -182,7 +185,8 @@ def _int(v) -> Optional[int]:
 
 
 def _claims(raw) -> tuple[list, Optional[int]]:
-    """Quellenangaben bereinigen und mitteln: je Quelle die Mitte ihrer Spanne, alle Quellen gleich gewichtet."""
+    """Quellenangaben bereinigen und mitteln: je Quelle die Mitte ihrer Spanne; Hersteller-Seite (Breeder, Shops,
+    Datenbanken – oft abgeschriebenes Datenblatt) und Grower-Seite getrennt mitteln, dann beide Seiten 50/50."""
     out = []
     for c in raw or []:
         if not isinstance(c, dict):
@@ -194,8 +198,9 @@ def _claims(raw) -> tuple[list, Optional[int]]:
         lo, hi = min(lo, hi), max(lo, hi)
         out.append({"source": (c.get("source") or "?").strip(), "kind": c.get("kind") if c.get("kind") in KINDS else "grower",
                     "min": lo, "max": hi, "note": (c.get("note") or "").strip()})
-    mean = round(sum((c["min"] + c["max"]) / 2 for c in out) / len(out)) if out else None
-    return out, mean
+    sides = [[(c["min"] + c["max"]) / 2 for c in out if (c["kind"] == "grower") == g] for g in (False, True)]
+    means = [sum(v) / len(v) for v in sides if v]
+    return out, (round(sum(means) / len(means)) if means else None)
 
 
 def to_strain(d: dict, sources: list, source: str) -> dict:

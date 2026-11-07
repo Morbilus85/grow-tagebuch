@@ -184,7 +184,7 @@ def test_strain_info(monkeypatch):
                                       {"source": "Forum", "kind": "quatsch", "min": 0, "max": 90, "note": "Gießfehler"},
                                       {"source": "leer", "kind": "grower", "min": 0, "max": 0, "note": ""}],
                                   "height_claims": []}, [], "internet")
-    assert real["fields"]["seed_to_harvest_days"] == round((59.5 + 77 + 90) / 3)  # 76
+    assert real["fields"]["seed_to_harvest_days"] == round((59.5 + (77 + 90) / 2) / 2)  # Hersteller 59,5 / Grower 83,5 → 72
     assert real["fields"]["max_height_cm"] == 75  # keine Angaben → Breeder
     assert len(real["info"]["duration_claims"]) == 3 and real["info"]["duration_claims"][2]["kind"] == "grower"
     assert real["info"]["breeder_values"] == {"days": 63, "height_cm": 75}
