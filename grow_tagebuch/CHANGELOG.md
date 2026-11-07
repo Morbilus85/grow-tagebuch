@@ -1,3 +1,9 @@
+## 0.8.0
+
+- Sorten-Steckbrief: nur noch offizielle Breeder-Angaben (Seedfinder nur als Ersatz, wenn der Breeder etwas nicht angibt).
+  Keine Foren-/Diary-Werte, kein Mitteln, keine Nachrecherche – Recherche deutlich schneller, Steckbrief übersichtlich.
+- Kurzfassung auf der Pflanzenseite zeigt jetzt auch die Wirkung.
+
 ## 0.7.11
 
 - Sorten-Recherche: Fehlen Kernangaben (Wirkung, Aroma, Terpene, Ertrag, Schwierigkeit, Wuchs, THC, Genetik),

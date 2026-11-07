@@ -63,15 +63,13 @@ def _prompt(name: str, breeder: str, auto: Optional[bool]) -> str:
     techniques = "\n".join(f"- {t['key']}: {t['name']}" for t in TECHNIQUES)
     typ = "Autoflower" if auto else ("photoperiodisch" if auto is False else "Typ unbekannt")
     return f"""Recherchiere die Cannabis-Sorte „{name}“ vom Breeder „{breeder or 'unbekannt'}“ ({typ}).
-Nutze bevorzugt die Herstellerseite (Datenblatt) und ergänze Erfahrungswerte von Growern (z. B. Grow-Diaries, Seedfinder).
+Verwende ausschließlich die offiziellen Angaben des Breeders (Herstellerseite/Datenblatt). Nur wenn der Breeder einen Punkt
+nicht angibt, darf Seedfinder als Ersatz dienen – dann „(Seedfinder)“ dazuschreiben. Keine Foren- oder Grow-Diary-Werte.
 Es geht um einen Indoor-Grow in einem kleinen Zelt (ca. 80×80×180 cm, 20-l-Stofftöpfe, organisch mit BioBizz).
 
-Fasse auf Deutsch zusammen: offizieller Name, Breeder, Auto oder Photo, Genetik, Indica/Sativa-Anteil, THC, CBD,
-Samen bis Ernte bzw. Blütedauer und Indoor-Höhe: Halte für BEIDE Werte jede Quelle einzeln fest – Breeder, Seedbanks/Shops,
-Datenbanken (Seedfinder, Leafly), einzelne Grow-Diaries und Forenberichte – jeweils mit Quelle und konkreter Zahl bzw. Spanne
-(Tage bzw. cm) und kurzem Kontext (z. B. „Gießfehler“, „Licht 18/6“). Möglichst 4–8 Angaben je Wert, bei der Höhe
-gezielt nach Endhöhen in Grow-Diaries suchen (z. B. „85 days – 97 cm“). Ertrag indoor/outdoor,
-Schwierigkeit, Aroma, Terpene, Wirkung, Wuchsform/Stretch, Besonderheiten, konkrete Anbautipps.
+Fasse kurz auf Deutsch zusammen: offizieller Name, Breeder, Auto oder Photo, Genetik, Indica/Sativa-Anteil, THC, CBD,
+Samen bis Ernte bzw. Blütedauer, Höhe indoor, Ertrag indoor/outdoor, Schwierigkeit, Aroma, Terpene, Wirkung, Wuchsform,
+Besonderheiten, wenige konkrete Anbautipps.
 Bewerte außerdem jede dieser Trainingstechniken für genau diese Sorte (besonders geeignet / geeignet / mit Vorsicht / ungeeignet, je kurze Begründung):
 {techniques}
 """
@@ -79,14 +77,6 @@ Bewerte außerdem jede dieser Trainingstechniken für genau diese Sorte (besonde
 
 _S = {"type": "string"}
 _I = {"type": "integer"}
-KINDS = {"breeder": "Breeder", "shop": "Shop", "datenbank": "Datenbank", "grower": "Grower/Forum"}
-# Eine Angabe je Quelle; min = max bei Einzelwert
-_CLAIMS = {"type": "array", "items": {"type": "object", "properties": {
-    "source": {**_S, "description": "z. B. Zamnesia, Seedfinder, GrowDiaries (Nutzer xy)"},
-    "kind": {"type": "string", "enum": list(KINDS)},
-    "min": _I, "max": _I,
-    "note": {**_S, "description": "kurzer Kontext, leer wenn keiner"}},
-    "required": ["source", "kind", "min", "max", "note"], "additionalProperties": False}}
 # Structured Outputs: alle Felder Pflicht, unbekannt = "" bzw. 0 (kaum Union-Typen, additionalProperties false)
 SCHEMA = {
     "type": "object",
@@ -96,11 +86,8 @@ SCHEMA = {
         "thc": {**_S, "description": "z. B. 23 %"}, "cbd": _S,
         "seed_to_harvest_days": {**_I, "description": "Autos: Samen bis Ernte laut Breeder in Tagen (Obergrenze), sonst 0"},
         "flowering_days": {**_I, "description": "Photos: Blütedauer laut Breeder in Tagen (Obergrenze), sonst 0"},
-        "duration_claims": {**_CLAIMS, "description": "Jede Quelle einzeln: Autos Samen bis Ernte, Photos Blütedauer, in Tagen"},
-        "seed_to_harvest_text": {**_S, "description": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen (Breeder)"},
-        "grower_days": {**_S, "description": "typische tatsächliche Dauer laut Growern"},
+        "seed_to_harvest_text": {**_S, "description": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen"},
         "max_height_cm": {**_I, "description": "Indoor-Höhe laut Breeder in cm, unbekannt 0"},
-        "height_claims": {**_CLAIMS, "description": "Jede Quelle einzeln: Indoor-Endhöhe in cm"},
         "height_text": _S, "yield_indoor": _S, "yield_outdoor": _S,
         "difficulty": {"type": "string", "enum": ["leicht", "mittel", "schwer", "unbekannt"]},
         "aroma": _S, "terpenes": _S, "effect": _S,
@@ -123,19 +110,13 @@ def _extract_json(text: str) -> dict:
     return json.loads(raw)
 
 
-# Inhalte, die im Steckbrief nicht fehlen sollen → bei Lücken gezielt nachrecherchieren
-ESSENTIAL = {"effect": "Wirkung (laut Breeder und Konsumenten-Berichten)", "aroma": "Aroma/Geschmack",
-             "terpenes": "dominante Terpene", "yield_indoor": "Ertrag indoor", "difficulty": "Schwierigkeit",
-             "structure": "Wuchsform/Stretch", "thc": "THC-Gehalt", "genetics": "Genetik/Eltern"}
-
-
 async def _research(client, headers, name: str, prompt: str, sources: dict) -> str:
     """Websuche mit pause_turn-Fortsetzung; leere Antwort einmal wiederholen."""
     data: dict = {}
     for attempt in range(2):
         messages = [{"role": "user", "content": prompt}]
         body = {"model": MODEL, "max_tokens": 16000, "messages": messages,
-                "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
+                "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}]}
         texts: list[str] = []
         for _ in range(4):  # pause_turn: Antwort fortsetzen lassen
             r = await client.post(API_URL, headers=headers, json=body)
@@ -164,9 +145,7 @@ async def _extract(client, headers, name: str, research: str) -> Optional[dict]:
         "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
         "messages": [{"role": "user", "content":
                       f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf Deutsch, "
-                      f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten. "
-                      f"duration_claims und height_claims mit jeder Einzelangabe aus der Recherche füllen "
-                      f"(auch Höhen, die nebenbei in Diaries genannt werden).\n\n{research}"}],
+                      f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten.\n\n{research}"}],
     }
     r = await client.post(API_URL, headers=headers, json=extract)
     if r.status_code != 200:
@@ -179,13 +158,8 @@ async def _extract(client, headers, name: str, research: str) -> Optional[dict]:
     return d if isinstance(d, dict) else None
 
 
-def missing_essentials(d: dict) -> list[str]:
-    return [k for k in ESSENTIAL if not (d.get(k) or "").strip() or (d.get(k) or "").strip() == "unbekannt"]
-
-
 async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> dict:
-    """Schritt 1: Recherche mit Websuche (Freitext + Quellen). Schritt 2: Auslesen über festes Schema.
-    Schritt 3: fehlen Kernangaben (Wirkung, Aroma …), gezielt nachrecherchieren und nur die Lücken füllen."""
+    """Schritt 1: Websuche nach dem Breeder-Datenblatt. Schritt 2: Auslesen über festes Schema. Liefert {fields, info}."""
     key = api_key()
     if not key:
         raise RuntimeError("Kein Claude-API-Schlüssel hinterlegt (Add-on → Konfiguration → anthropic_api_key).")
@@ -199,20 +173,7 @@ async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> d
         if d is None:
             log.warning("Steckbrief nicht lesbar")
             raise RuntimeError("Die Antwort enthielt keinen lesbaren Steckbrief – bitte noch einmal versuchen.")
-        missing = missing_essentials(d)
-        if missing:
-            log.info("Nachrecherche zu %s: %s", name, ", ".join(missing))
-            topics = "\n".join(f"- {ESSENTIAL[k]}" for k in missing)
-            extra = await _research(client, headers, name,
-                                    f"Recherchiere zur Cannabis-Sorte „{name}“ vom Breeder „{breeder or 'unbekannt'}“ gezielt "
-                                    f"diese Punkte (Herstellerseite, Seedfinder, Leafly, Grow-Diaries, Shop-Beschreibungen), "
-                                    f"auf Deutsch, mit Quelle je Angabe; wenn Quellen sich widersprechen, beide nennen:\n{topics}",
-                                    sources)
-            d2 = await _extract(client, headers, name, extra) if extra else None
-            for k in missing:
-                if d2 and (d2.get(k) or "").strip() and d2.get(k) != "unbekannt":
-                    d[k] = d2[k]
-    return to_strain(d, [{"url": u, "title": t} for u, t in sources.items()][:10], source="internet")
+    return to_strain(d, [{"url": u, "title": t} for u, t in sources.items()][:6], source="internet")
 
 
 def _int(v) -> Optional[int]:
@@ -223,33 +184,8 @@ def _int(v) -> Optional[int]:
         return None
 
 
-def _claims(raw) -> tuple[list, Optional[int]]:
-    """Quellenangaben bereinigen und mitteln: je Quelle die Mitte ihrer Spanne; Hersteller-Seite (Breeder, Shops,
-    Datenbanken – oft abgeschriebenes Datenblatt) und Grower-Seite getrennt mitteln, dann beide Seiten 50/50."""
-    out = []
-    for c in raw or []:
-        if not isinstance(c, dict):
-            continue
-        lo, hi = _int(c.get("min")), _int(c.get("max"))
-        lo, hi = lo or hi, hi or lo
-        if not lo:
-            continue
-        lo, hi = min(lo, hi), max(lo, hi)
-        out.append({"source": (c.get("source") or "?").strip(), "kind": c.get("kind") if c.get("kind") in KINDS else "grower",
-                    "min": lo, "max": hi, "note": (c.get("note") or "").strip()})
-    sides = [[(c["min"] + c["max"]) / 2 for c in out if (c["kind"] == "grower") == g] for g in (False, True)]
-    means = [sum(v) / len(v) for v in sides if v]
-    return out, (round(sum(means) / len(means)) if means else None)
-
-
 def to_strain(d: dict, sources: list, source: str) -> dict:
-    """Steckbrief-Dict → Felder für das Strain-Modell + info-JSON.
-    Gerechnet wird mit den realistischen Werten (Grower), die Breeder-Angaben landen nur im Steckbrief."""
-    breeder = {"days": _int(d.get("seed_to_harvest_days")), "flowering_days": _int(d.get("flowering_days")),
-               "height_cm": _int(d.get("max_height_cm"))}
-    dur, dur_mean = _claims(d.get("duration_claims"))
-    hgt, hgt_mean = _claims(d.get("height_claims"))
-    auto = d.get("auto") if isinstance(d.get("auto"), bool) else None
+    """Steckbrief-Dict → Felder für das Strain-Modell + info-JSON (Breeder-Angaben)."""
     valid = {t["key"] for t in TECHNIQUES}
     training = [t for t in (d.get("training") or []) if isinstance(t, dict) and t.get("key") in valid
                 and t.get("rating") in RATINGS]
@@ -257,15 +193,13 @@ def to_strain(d: dict, sources: list, source: str) -> dict:
         "name": d.get("name"), "breeder": d.get("breeder"),
         "auto": d.get("auto") if isinstance(d.get("auto"), bool) else None,
         "genetics": d.get("genetics"),
-        "seed_to_harvest_days": (dur_mean if auto is not False else None) or breeder["days"],
-        "flowering_days": (dur_mean if auto is False else None) or breeder["flowering_days"],
-        "max_height_cm": hgt_mean or breeder["height_cm"],
+        "seed_to_harvest_days": _int(d.get("seed_to_harvest_days")),
+        "flowering_days": _int(d.get("flowering_days")),
+        "max_height_cm": _int(d.get("max_height_cm")),
     }.items() if v not in (None, "")}
-    info = {k: d.get(k) for k in ("type", "thc", "cbd", "seed_to_harvest_text", "grower_days", "height_text",
+    info = {k: d.get(k) for k in ("type", "thc", "cbd", "seed_to_harvest_text", "height_text",
                                   "yield_indoor", "yield_outdoor", "difficulty", "aroma", "terpenes", "effect",
                                   "structure") if d.get(k) and d.get(k) != "unbekannt"}
-    info["breeder_values"] = {k: v for k, v in breeder.items() if v}
-    info["duration_claims"], info["height_claims"] = dur, hgt
     info["specials"] = [s for s in (d.get("specials") or []) if s]
     info["grow_tips"] = [s for s in (d.get("grow_tips") or []) if s]
     info["training"] = training

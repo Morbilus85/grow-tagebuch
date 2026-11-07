@@ -176,19 +176,6 @@ def test_strain_info(monkeypatch):
     parsed = strain_info.to_strain(strain_info._extract_json(raw), [{"url": "https://x", "title": "X"}], "internet")
     assert parsed["fields"]["seed_to_harvest_days"] == 63 and len(parsed["info"]["training"]) == 2
 
-    # Quellen werden gemittelt (Mitte je Spanne, gleich gewichtet), Breeder-Angaben bleiben im Steckbrief
-    real = strain_info.to_strain({"auto": True, "seed_to_harvest_days": 63, "max_height_cm": 75, "flowering_days": 0,
-                                  "duration_claims": [
-                                      {"source": "Zamnesia", "kind": "breeder", "min": 56, "max": 63, "note": ""},
-                                      {"source": "GrowDiaries", "kind": "grower", "min": 77, "max": 77, "note": ""},
-                                      {"source": "Forum", "kind": "quatsch", "min": 0, "max": 90, "note": "Gießfehler"},
-                                      {"source": "leer", "kind": "grower", "min": 0, "max": 0, "note": ""}],
-                                  "height_claims": []}, [], "internet")
-    assert real["fields"]["seed_to_harvest_days"] == round((59.5 + (77 + 90) / 2) / 2)  # Hersteller 59,5 / Grower 83,5 → 72
-    assert real["fields"]["max_height_cm"] == 75  # keine Angaben → Breeder
-    assert len(real["info"]["duration_claims"]) == 3 and real["info"]["duration_claims"][2]["kind"] == "grower"
-    assert real["info"]["breeder_values"] == {"days": 63, "height_cm": 75}
-    assert strain_info.missing_essentials({"effect": "entspannend", "aroma": "unbekannt", "thc": ""})[:2] == ["aroma", "terpenes"]
 
     async def fake(name, breeder="", auto=None):
         return parsed
