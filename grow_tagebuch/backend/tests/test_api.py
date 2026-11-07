@@ -188,6 +188,7 @@ def test_strain_info(monkeypatch):
     assert real["fields"]["max_height_cm"] == 75  # keine Angaben → Breeder
     assert len(real["info"]["duration_claims"]) == 3 and real["info"]["duration_claims"][2]["kind"] == "grower"
     assert real["info"]["breeder_values"] == {"days": 63, "height_cm": 75}
+    assert strain_info.missing_essentials({"effect": "entspannend", "aroma": "unbekannt", "thc": ""})[:2] == ["aroma", "terpenes"]
 
     async def fake(name, breeder="", auto=None):
         return parsed

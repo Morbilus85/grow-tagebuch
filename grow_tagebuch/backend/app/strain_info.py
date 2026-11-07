@@ -123,62 +123,96 @@ def _extract_json(text: str) -> dict:
     return json.loads(raw)
 
 
+# Inhalte, die im Steckbrief nicht fehlen sollen → bei Lücken gezielt nachrecherchieren
+ESSENTIAL = {"effect": "Wirkung (laut Breeder und Konsumenten-Berichten)", "aroma": "Aroma/Geschmack",
+             "terpenes": "dominante Terpene", "yield_indoor": "Ertrag indoor", "difficulty": "Schwierigkeit",
+             "structure": "Wuchsform/Stretch", "thc": "THC-Gehalt", "genetics": "Genetik/Eltern"}
+
+
+async def _research(client, headers, name: str, prompt: str, sources: dict) -> str:
+    """Websuche mit pause_turn-Fortsetzung; leere Antwort einmal wiederholen."""
+    data: dict = {}
+    for attempt in range(2):
+        messages = [{"role": "user", "content": prompt}]
+        body = {"model": MODEL, "max_tokens": 16000, "messages": messages,
+                "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
+        texts: list[str] = []
+        for _ in range(4):  # pause_turn: Antwort fortsetzen lassen
+            r = await client.post(API_URL, headers=headers, json=body)
+            if r.status_code != 200:
+                raise RuntimeError(_error(r))
+            data = r.json()
+            for block in data.get("content", []):
+                if block.get("type") == "text":
+                    texts.append(block.get("text", ""))
+                    for c in block.get("citations") or []:
+                        if c.get("url"):
+                            sources.setdefault(c["url"], c.get("title") or c["url"])
+            if data.get("stop_reason") != "pause_turn":
+                break
+            messages.append({"role": "assistant", "content": data["content"]})
+        research = "".join(texts).strip()
+        if research:
+            return research
+        log.warning("Recherche zu %s leer (Versuch %d, stop_reason %s)", name, attempt + 1, data.get("stop_reason"))
+    return ""
+
+
+async def _extract(client, headers, name: str, research: str) -> Optional[dict]:
+    extract = {
+        "model": MODEL, "max_tokens": 8000,
+        "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
+        "messages": [{"role": "user", "content":
+                      f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf Deutsch, "
+                      f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten. "
+                      f"duration_claims und height_claims mit jeder Einzelangabe aus der Recherche füllen "
+                      f"(auch Höhen, die nebenbei in Diaries genannt werden).\n\n{research}"}],
+    }
+    r = await client.post(API_URL, headers=headers, json=extract)
+    if r.status_code != 200:
+        raise RuntimeError(_error(r))
+    out = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+    try:
+        d = json.loads(out)
+    except json.JSONDecodeError:
+        return None
+    return d if isinstance(d, dict) else None
+
+
+def missing_essentials(d: dict) -> list[str]:
+    return [k for k in ESSENTIAL if not (d.get(k) or "").strip() or (d.get(k) or "").strip() == "unbekannt"]
+
+
 async def lookup(name: str, breeder: str = "", auto: Optional[bool] = None) -> dict:
-    """Schritt 1: Recherche mit Websuche (Freitext + Quellen). Schritt 2: Auslesen über festes Schema
-    (Tool-Aufruf erzwingt gültiges JSON). Liefert {fields, info}."""
+    """Schritt 1: Recherche mit Websuche (Freitext + Quellen). Schritt 2: Auslesen über festes Schema.
+    Schritt 3: fehlen Kernangaben (Wirkung, Aroma …), gezielt nachrecherchieren und nur die Lücken füllen."""
     key = api_key()
     if not key:
         raise RuntimeError("Kein Claude-API-Schlüssel hinterlegt (Add-on → Konfiguration → anthropic_api_key).")
     headers = _headers(key)
-    texts: list[str] = []
     sources: dict[str, str] = {}
     async with httpx.AsyncClient(timeout=180) as client:
-        for attempt in range(2):  # leere Websuche kommt sporadisch vor → einmal wiederholen
-            messages = [{"role": "user", "content": _prompt(name, breeder, auto)}]
-            body = {"model": MODEL, "max_tokens": 16000, "messages": messages,
-                    "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}]}
-            texts.clear()
-            for _ in range(4):  # pause_turn: Antwort fortsetzen lassen
-                r = await client.post(API_URL, headers=headers, json=body)
-                if r.status_code != 200:
-                    raise RuntimeError(_error(r))
-                data = r.json()
-                for block in data.get("content", []):
-                    if block.get("type") == "text":
-                        texts.append(block.get("text", ""))
-                        for c in block.get("citations") or []:
-                            if c.get("url"):
-                                sources.setdefault(c["url"], c.get("title") or c["url"])
-                if data.get("stop_reason") != "pause_turn":
-                    break
-                messages.append({"role": "assistant", "content": data["content"]})
-            research = "".join(texts).strip()
-            if research:
-                break
-            log.warning("Recherche zu %s leer (Versuch %d, stop_reason %s)", name, attempt + 1, data.get("stop_reason"))
+        research = await _research(client, headers, name, _prompt(name, breeder, auto), sources)
         if not research:
             raise RuntimeError("Die Recherche hat nichts geliefert – bitte noch einmal versuchen.")
-        extract = {
-            "model": MODEL, "max_tokens": 8000,
-            "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
-            "messages": [{"role": "user", "content":
-                          f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf Deutsch, "
-                          f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten. "
-                          f"duration_claims und height_claims mit jeder Einzelangabe aus der Recherche füllen "
-                          f"(auch Höhen, die nebenbei in Diaries genannt werden).\n\n{research}"}],
-        }
-        r = await client.post(API_URL, headers=headers, json=extract)
-        if r.status_code != 200:
-            raise RuntimeError(_error(r))
-        out = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
-        try:
-            d = json.loads(out)
-        except json.JSONDecodeError:
-            d = None
-    if not isinstance(d, dict):
-        log.warning("Steckbrief nicht lesbar")
-        raise RuntimeError("Die Antwort enthielt keinen lesbaren Steckbrief – bitte noch einmal versuchen.")
-    return to_strain(d, [{"url": u, "title": t} for u, t in sources.items()][:8], source="internet")
+        d = await _extract(client, headers, name, research)
+        if d is None:
+            log.warning("Steckbrief nicht lesbar")
+            raise RuntimeError("Die Antwort enthielt keinen lesbaren Steckbrief – bitte noch einmal versuchen.")
+        missing = missing_essentials(d)
+        if missing:
+            log.info("Nachrecherche zu %s: %s", name, ", ".join(missing))
+            topics = "\n".join(f"- {ESSENTIAL[k]}" for k in missing)
+            extra = await _research(client, headers, name,
+                                    f"Recherchiere zur Cannabis-Sorte „{name}“ vom Breeder „{breeder or 'unbekannt'}“ gezielt "
+                                    f"diese Punkte (Herstellerseite, Seedfinder, Leafly, Grow-Diaries, Shop-Beschreibungen), "
+                                    f"auf Deutsch, mit Quelle je Angabe; wenn Quellen sich widersprechen, beide nennen:\n{topics}",
+                                    sources)
+            d2 = await _extract(client, headers, name, extra) if extra else None
+            for k in missing:
+                if d2 and (d2.get(k) or "").strip() and d2.get(k) != "unbekannt":
+                    d[k] = d2[k]
+    return to_strain(d, [{"url": u, "title": t} for u, t in sources.items()][:10], source="internet")
 
 
 def _int(v) -> Optional[int]:

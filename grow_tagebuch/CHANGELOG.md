@@ -1,3 +1,8 @@
+## 0.7.11
+
+- Sorten-Recherche: Fehlen Kernangaben (Wirkung, Aroma, Terpene, Ertrag, Schwierigkeit, Wuchs, THC, Genetik),
+  wird gezielt nachrecherchiert und nur die Lücken werden gefüllt.
+
 ## 0.7.10
 
 - Sorten-Recherche: Antwortlimit der Websuche auf 16 000 Token erhöht – bei vielen Einzelquellen war es vorher aufgebraucht,

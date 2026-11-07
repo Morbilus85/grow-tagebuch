@@ -13,7 +13,7 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Logik in `logic/` (phases, feeding, light, space, climate, training), Kataloge `training_data.py`, `germination_data.py`,
   `living_soil_data.py`, `pest_data.py`; Sorten-Recherche `strain_info.py` (Claude-API, Websuche → Structured Outputs).
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.10).
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.11).
 
 ## Release-Ablauf (immer so)
 
@@ -27,14 +27,15 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 ## Home Assistant
 
 - Add-on-Slug `a5231e4c_grow_tagebuch`. Live-Daten über `ha_manage_app slug=… path=/api/…` (GET/POST/PATCH/DELETE),
-  Logs über `ha_get_logs source=supervisor slug=…`. `POST /api/strains/{id}/refresh` dauert ~1 min →
-  Proxy-Timeout nach 30 s ist normal, läuft weiter; nach ~60 s `GET /api/strains` prüfen (`info.updated_at`). In `python_transform` kein `|`-Operator.
+  Logs über `ha_get_logs source=supervisor slug=…`. `POST /api/strains/{id}/refresh` dauert 1–3 min (mit Nachrecherche) →
+  Proxy-Timeout nach 30 s ist normal, läuft weiter; Log „Sorten-Recherche für … gespeichert“ abwarten, dann `GET /api/strains` prüfen (`info.updated_at`). In `python_transform` kein `|`-Operator.
   HA-Werkzeuge laufen über Kilians Desktop-App (`mcp__remote-devices__Home_Assistant__*`, per ToolSearch laden) – nur
   erreichbar, wenn der Chat in der Desktop-App offen ist. Der Browser-Bereich taugt für HA nicht (lädt nicht).
 - Sorten-Recherche (Structured Outputs) läuft gegen die echte API – bestätigt am 07.11.2026 (Blueberry Automatic).
   Ab 0.7.6: Recherche liefert `duration_claims`/`height_claims` (je Quelle min/max, Art, Kontext). `strain_info._claims`
   mittelt (Mitte je Spanne; Hersteller-Seite und Grower-Seite getrennt, dann 50/50) → `seed_to_harvest_days`/`flowering_days`/`max_height_cm`. Breeder-Werte in
   `info.breeder_values`. Steckbrief zeigt „wer sagt was“ + Mittelwert.
+  Ab 0.7.11: fehlen `ESSENTIAL`-Felder (Wirkung, Aroma …), gezielte Nachrecherche nur für die Lücken.
 - Regeln: App liest HA nur, schaltet nie. Automationen „Growzelt-Heizung“ und „Heizmatte“ hat Kilian bewusst deaktiviert –
   nicht ohne Rückfrage aktivieren. Neue HA-Automationen nur deaktiviert anlegen; größere Änderungen vorher vorschlagen.
 - Sensoren: Zelt `sensor.homegrow_probe_sensor_sonden_*` (Temperatur, Luftfeuchtigkeit, VPD), Lampe Stufe
