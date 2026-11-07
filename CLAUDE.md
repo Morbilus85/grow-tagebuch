@@ -26,6 +26,9 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. Spezifikat
 
 - Add-on-Slug `a5231e4c_grow_tagebuch`. Live-Daten über `ha_manage_app slug=… path=/api/…` (GET/POST/PATCH/DELETE),
   Logs über `ha_get_logs source=supervisor slug=…`. In `python_transform` kein `|`-Operator.
+  HA-Werkzeuge laufen über Kilians Desktop-App (`mcp__remote-devices__Home_Assistant__*`, per ToolSearch laden) – nur
+  erreichbar, wenn der Chat in der Desktop-App offen ist. Der Browser-Bereich taugt für HA nicht (lädt nicht).
+- Sorten-Recherche (0.7.3, Structured Outputs) läuft gegen die echte API – bestätigt am 07.11.2026 (Blueberry Automatic).
 - Regeln: App liest HA nur, schaltet nie. Automationen „Growzelt-Heizung“ und „Heizmatte“ hat Kilian bewusst deaktiviert –
   nicht ohne Rückfrage aktivieren. Neue HA-Automationen nur deaktiviert anlegen; größere Änderungen vorher vorschlagen.
 - Sensoren: Zelt `sensor.homegrow_probe_sensor_sonden_*` (Temperatur, Luftfeuchtigkeit, VPD), Lampe Stufe
@@ -42,17 +45,18 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. Spezifikat
 
 ## Aktueller Stand der Daten
 
-- Durchgang 3 „White Truffle Auto – Herbst 2026“ (aktiv): Pflanze 1–3, Sorte White Truffle Auto (Zamnesia, Strain-ID 2,
-  70 Tage Samen bis Ernte angesetzt; Breeder sagt 8–9 Wochen). Eingeweicht 31.10.2026 23:10 in 9 ml Wasser + 1 ml H2O2 3 %.
-  Noch nicht gesetzt – diesmal ca. 1 cm tief, Wurzel nach unten, locker bedecken.
+- Durchgang 3 „White Truffle Auto + Blueberry Auto – Herbst 2026“ (ID 3, aktiv, Lampe Stufe 3 / 60 cm, 20/4 ab 06:00):
+  - Pflanze 1 (ID 7): White Truffle Auto (Strain-ID 2), eingeweicht 31.10. 23:10, gesetzt 01.11., aufgelaufen 03.11.2026.
+  - Pflanze 2 (ID 8) „Keimt nicht“ und Pflanze 3 (ID 9) „Keimling eingegangen“: am 07.11.2026 abgebrochen.
+  - Pflanze 4 + 5 (ID 10/11): Blueberry Automatic (Zamnesia, Strain-ID 3, 63 Tage, max. 75 cm), Nachzügler, H2O2 eingeweicht
+    07.11.2026 17:03/17:05, noch nicht gesetzt. Plan: erst mit Keimwurzel 0,5–1 cm setzen, je Topf den schwächeren später abbrechen.
+  - Keine White-Truffle-Samen mehr vorrätig.
 - Durchgang 1 „Strawberry Cough Auto – Herbst 2026“: abgebrochen (zu tief gesetzt, kein Trieb), bleibt als Verlauf.
 - Schädlingsfall 1 Trauermücken (zeltweit, in Behandlung, Nematoden bestellt), hängt an Durchgang 3.
 - Aufgaben: pH-Meter kalibrieren (14 d), Gelbtafeln prüfen (7 d), Töpfe drehen (7 d).
 
 ## Offen
 
-- 0.7.3 (Sorten-Recherche über Structured Outputs) ist bereitgestellt, aber gegen die echte API noch nicht bestätigt.
-  Wenn „Infos aus dem Internet holen“ scheitert: Add-on-Log prüfen.
 - Dosierungen von den Etiketten nachtragen, sobald Kilian Fotos schickt (DiMikro, Rootmax, Ackerschachtelhalm,
   Brennnesselpulver, Aloe-Puder, Neem Cake, CalMag).
 - Phase 1b (ntfy-Push, Topfgewicht lernen, Export) und Phase 2 (KI-Klimacheck, freie Frage) – vorgeschlagen, nicht gestartet.
