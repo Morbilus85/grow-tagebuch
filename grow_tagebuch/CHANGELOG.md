@@ -1,3 +1,8 @@
+## 0.7.5
+
+- Sorten-Recherche: realistische Werte = Mitte der üblichen Grower-Spanne, Ausreißer werden ignoriert (vorher oberes Ende,
+  dadurch z. B. 90 statt ca. 77 Tage).
+
 ## 0.7.4
 
 - Sorten-Recherche: Die App rechnet jetzt mit realistischen Werten aus Grower-Berichten (Dauer, Endhöhe) statt mit den

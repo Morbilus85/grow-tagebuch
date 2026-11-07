@@ -86,14 +86,15 @@ SCHEMA = {
         "thc": {**_S, "description": "z. B. 23 %"}, "cbd": _S,
         "seed_to_harvest_days": {**_I, "description": "Autos: Samen bis Ernte laut Breeder in Tagen (Obergrenze), sonst 0"},
         "flowering_days": {**_I, "description": "Photos: Blütedauer laut Breeder in Tagen (Obergrenze), sonst 0"},
-        "real_seed_to_harvest_days": {**_I, "description": "Autos: realistische Dauer Samen bis Ernte in Tagen, wie sie "
-                                      "Grower-Berichte typischerweise zeigen (eher oberes Ende), sonst 0"},
-        "real_flowering_days": {**_I, "description": "Photos: realistische Blütedauer in Tagen laut Growern, sonst 0"},
+        "real_seed_to_harvest_days": {**_I, "description": "Autos: typische Dauer Samen bis Ernte in Tagen laut Grower-"
+                                      "Berichten (Mitte der üblichen Spanne, Ausreißer ignorieren), sonst 0"},
+        "real_flowering_days": {**_I, "description": "Photos: typische Blütedauer in Tagen laut Growern (Mitte der "
+                                "üblichen Spanne, Ausreißer ignorieren), sonst 0"},
         "seed_to_harvest_text": {**_S, "description": "Breeder-Angabe im Wortlaut, z. B. 8–9 Wochen (Breeder)"},
         "grower_days": {**_S, "description": "typische tatsächliche Dauer laut Growern"},
         "max_height_cm": {**_I, "description": "Indoor-Höhe laut Breeder in cm, unbekannt 0"},
-        "real_height_cm": {**_I, "description": "realistische Indoor-Endhöhe in cm laut Grower-Berichten "
-                           "(eher oberes Ende), unbekannt 0"},
+        "real_height_cm": {**_I, "description": "typische Indoor-Endhöhe in cm laut Grower-Berichten "
+                           "(Mitte der üblichen Spanne, Ausreißer ignorieren), unbekannt 0"},
         "height_text": _S, "yield_indoor": _S, "yield_outdoor": _S,
         "difficulty": {"type": "string", "enum": ["leicht", "mittel", "schwer", "unbekannt"]},
         "aroma": _S, "terpenes": _S, "effect": _S,

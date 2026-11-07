@@ -1,7 +1,8 @@
 # Grow-Tagebuch – Übergabe für neue Sitzungen
 
 Kilians Grow-Tagebuch: organischer Cannabis-Homegrow im Indoor-Zelt, als Home-Assistant-Add-on.
-Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. Spezifikation: `docs/SPEZIFIKATION.md`.
+Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles selbst und automatisch ausführen**
+(Releases, Updates, Daten in der App) – nicht nachfragen, nicht an Kilian delegieren. Ausnahme: HA-Regeln unten. Spezifikation: `docs/SPEZIFIKATION.md`.
 
 ## Aufbau
 
@@ -12,24 +13,26 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. Spezifikat
   Logik in `logic/` (phases, feeding, light, space, climate, training), Kataloge `training_data.py`, `germination_data.py`,
   `living_soil_data.py`, `pest_data.py`; Sorten-Recherche `strain_info.py` (Claude-API, Websuche → Structured Outputs).
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.4).
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.7.5).
 
 ## Release-Ablauf (immer so)
 
 1. Version in `grow_tagebuch/config.yaml` und `backend/app/__init__.py` erhöhen, Eintrag oben in `CHANGELOG.md`.
 2. Tests, `cd grow_tagebuch/frontend && npx vite build`.
 3. Commit als `git -c user.name="Morbilus85" -c user.email="morbilus@googlemail.com" commit …`, push auf `main`.
-4. In HA `ha_manage_app action=check_updates` – **nicht selbst installieren**, Kilian klickt „Aktualisieren“.
+4. In HA `ha_manage_app action=check_updates`, dann `action=update` – **selbst installieren** (Kilians Wunsch seit 07.11.2026).
+   Folgeschritte (z. B. Sorten neu recherchieren) ebenfalls selbst über die API erledigen, nicht an Kilian delegieren.
 5. UI-Änderungen vorher lokal mit Playwright prüfen (Server mit `GROW_DATA_DIR=<scratch>` starten, PID merken – kein `pkill -f`).
 
 ## Home Assistant
 
 - Add-on-Slug `a5231e4c_grow_tagebuch`. Live-Daten über `ha_manage_app slug=… path=/api/…` (GET/POST/PATCH/DELETE),
-  Logs über `ha_get_logs source=supervisor slug=…`. In `python_transform` kein `|`-Operator.
+  Logs über `ha_get_logs source=supervisor slug=…`. `POST /api/strains/{id}/refresh` dauert ~1 min →
+  Proxy-Timeout nach 30 s ist normal, läuft weiter; nach ~60 s `GET /api/strains` prüfen (`info.updated_at`). In `python_transform` kein `|`-Operator.
   HA-Werkzeuge laufen über Kilians Desktop-App (`mcp__remote-devices__Home_Assistant__*`, per ToolSearch laden) – nur
   erreichbar, wenn der Chat in der Desktop-App offen ist. Der Browser-Bereich taugt für HA nicht (lädt nicht).
 - Sorten-Recherche (Structured Outputs) läuft gegen die echte API – bestätigt am 07.11.2026 (Blueberry Automatic).
-  Ab 0.7.4: `seed_to_harvest_days`/`flowering_days`/`max_height_cm` = realistische Grower-Werte (Rechengrundlage),
+  Ab 0.7.4/0.7.5: `seed_to_harvest_days`/`flowering_days`/`max_height_cm` = typische Grower-Werte (Mitte der Spanne, Rechengrundlage),
   Breeder-Angaben stehen in `info.breeder_values`. Steckbrief zeigt „App rechnet mit“.
 - Regeln: App liest HA nur, schaltet nie. Automationen „Growzelt-Heizung“ und „Heizmatte“ hat Kilian bewusst deaktiviert –
   nicht ohne Rückfrage aktivieren. Neue HA-Automationen nur deaktiviert anlegen; größere Änderungen vorher vorschlagen.
@@ -51,7 +54,7 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. Spezifikat
   - Pflanze 1 (ID 7): White Truffle Auto (Strain-ID 2), eingeweicht 31.10. 23:10, gesetzt 01.11., aufgelaufen 03.11.2026.
   - Pflanze 2 (ID 8) „Keimt nicht“ und Pflanze 3 (ID 9) „Keimling eingegangen“: am 07.11.2026 abgebrochen.
   - Pflanze 4 + 5 (ID 10/11): Blueberry Automatic (Zamnesia, Strain-ID 3), Nachzügler, 3 Blueberry-Samen Reserve, H2O2 eingeweicht
-    07.11.2026 17:03/17:05, noch nicht gesetzt. Strain 3 von Hand auf 70 Tage / 95 cm gesetzt. Plan: erst mit Keimwurzel 0,5–1 cm setzen, je Topf den schwächeren später abbrechen.
+    07.11.2026 17:03/17:05, noch nicht gesetzt. Plan: erst mit Keimwurzel 0,5–1 cm setzen, je Topf den schwächeren später abbrechen.
   - Keine White-Truffle-Samen mehr vorrätig.
 - Durchgang 1 „Strawberry Cough Auto – Herbst 2026“: abgebrochen (zu tief gesetzt, kein Trieb), bleibt als Verlauf.
 - Schädlingsfall 1 Trauermücken (zeltweit, in Behandlung, Nematoden bestellt), hängt an Durchgang 3.
@@ -59,8 +62,6 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. Spezifikat
 
 ## Offen
 
-- 0.7.4 bereitgestellt (realistische Sortenwerte). Nach dem Update Strain 2 (White Truffle) und 3 (Blueberry) per
-  „Infos aus dem Internet holen“ neu recherchieren und Werte prüfen.
 - Dosierungen von den Etiketten nachtragen, sobald Kilian Fotos schickt (DiMikro, Rootmax, Ackerschachtelhalm,
   Brennnesselpulver, Aloe-Puder, Neem Cake, CalMag).
 - Phase 1b (ntfy-Push, Topfgewicht lernen, Export) und Phase 2 (KI-Klimacheck, freie Frage) – vorgeschlagen, nicht gestartet.
