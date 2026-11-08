@@ -1,3 +1,13 @@
+## 0.9.0
+
+- Push-Benachrichtigungen über ntfy (Mehr → Push-Benachrichtigungen):
+  - Fällige Aufgaben einmal täglich zur eingestellten Uhrzeit (Standard 08:00, wird nach einem Neustart nachgeholt).
+  - Klima-Alarm, wenn Temperatur oder Blatt-VPD länger als 30 min deutlich außerhalb des Zielbereichs der Phase liegen;
+    Wiederholung frühestens nach 3 h, Entwarnung wenn wieder im Bereich. Optional „streng“ (jede Abweichung).
+  - Warnung, wenn der Klimasensor 30 min keine Werte liefert.
+  - Test-Push und „Aufgaben jetzt senden“. Topic/Server in der App, sonst aus der Add-on-Konfiguration.
+- Mehr-Seite: Ladefehler in der Sensor-Liste behoben.
+
 ## 0.8.0
 
 - Sorten-Steckbrief: nur noch offizielle Breeder-Angaben (Seedfinder nur als Ersatz, wenn der Breeder etwas nicht angibt).

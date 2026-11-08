@@ -388,6 +388,50 @@ def set_household(data: dict, session: Session = S):
     return get_household(session)
 
 
+# ------------------------------------------------------------------ Push (ntfy)
+
+@api.get("/notify")
+def get_notify(session: Session = S):
+    from . import notify
+    return notify.status(session)
+
+
+@api.put("/notify")
+def set_notify(data: dict, session: Session = S):
+    from . import notify
+    if "tasks_time" in data:
+        try:
+            hh, mm = (int(x) for x in str(data["tasks_time"]).split(":")[:2])
+            assert 0 <= hh < 24 and 0 <= mm < 60
+            data["tasks_time"] = f"{hh:02d}:{mm:02d}"
+        except (ValueError, AssertionError):
+            raise HTTPException(400, "Uhrzeit als HH:MM angeben")
+    for k, lo, hi in (("climate_minutes", 10, 720), ("climate_repeat_hours", 1, 48), ("sensor_offline_minutes", 10, 720)):
+        if k in data:
+            data[k] = min(max(float(data[k]) if k == "climate_repeat_hours" else int(data[k]), lo), hi)
+    if "topic" in data:
+        data["topic"] = str(data["topic"]).strip()
+    notify.save_settings(session, data)
+    return notify.status(session)
+
+
+@api.post("/notify/test")
+async def test_notify(data: Optional[dict] = None, session: Session = S):
+    from . import notify
+    cfg = notify.settings(session)
+    if not cfg["topic_effective"]:
+        raise HTTPException(400, "Kein ntfy-Topic eingetragen")
+    kind = (data or {}).get("kind", "test")
+    if kind == "tasks":
+        d = notify.task_digest(session) or ("Grow: keine Aufgaben fällig", "Heute ist nichts fällig.")
+        ok = await notify.send(cfg, d[0], d[1], tags=["seedling", "clipboard"])
+    else:
+        ok = await notify.send(cfg, "Grow-Tagebuch: Test", "Push kommt an. 🌱", tags=["seedling"])
+    if not ok:
+        raise HTTPException(502, f"ntfy hat nicht angenommen ({cfg['server_effective']})")
+    return {"ok": True, "topic": cfg["topic_effective"]}
+
+
 @api.patch("/plants/{pid}")
 def update_plant(pid: int, data: dict, session: Session = S):
     plant = _apply(_get(session, Plant, pid), data)

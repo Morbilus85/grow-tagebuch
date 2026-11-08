@@ -189,3 +189,28 @@ def test_strain_info(monkeypatch):
         assert r["seed_to_harvest_days"] == 63 and r["info"]["thc"] == "23 %"
         assert r["training"][0]["key"] == "lst" and r["training"][-1]["rating"] == "nein"
         assert c.post("/api/strains/lookup", json={"name": "X"}).json()["fields"]["name"] == "White Truffle Auto"
+
+
+def test_notify_settings_and_push(monkeypatch):
+    from app import notify
+    sent = []
+
+    async def fake_send(cfg, title, message, priority=3, tags=None, click=None):
+        sent.append((cfg["topic_effective"], title, message))
+        return True
+
+    monkeypatch.setattr(notify, "send", fake_send)
+    with TestClient(app) as c:
+        st = c.get("/api/notify").json()
+        assert st["tasks_time"] == "08:00" and st["climate_minutes"] == 30
+        assert c.post("/api/notify/test").status_code in (200, 400)
+        st = c.put("/api/notify", json={"topic": " grow_test ", "tasks_time": "7:5", "climate_minutes": 3}).json()
+        assert st["topic_effective"] == "grow_test" and st["tasks_time"] == "07:05" and st["climate_minutes"] == 10
+        assert st["ready"]
+        assert c.put("/api/notify", json={"tasks_time": "25:00"}).status_code == 400
+        assert c.post("/api/notify/test").json()["ok"]
+        run = c.get("/api/runs").json()[0]
+        c.post("/api/tasks", json={"title": "Gelbtafeln prüfen", "run_id": run["id"], "interval_days": 7,
+                                   "due_on": "2026-11-01"})
+        assert c.post("/api/notify/test", json={"kind": "tasks"}).json()["ok"]
+        assert "Gelbtafeln prüfen" in sent[-1][2]

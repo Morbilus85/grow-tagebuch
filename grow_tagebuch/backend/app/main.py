@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
-from . import __version__
+from . import __version__, notify
 from .db import DATA_DIR, engine, init_db
 from .logic import climate
 from .models import SensorMapping
@@ -36,9 +36,23 @@ async def sample_job():
         setup_ids = {m.setup_id for m in s.exec(select(SensorMapping)).all()}
         for sid in setup_ids:
             try:
-                await climate.sample(s, sid)
+                smp = await climate.sample(s, sid)
             except Exception as e:  # Sensorfehler dürfen die App nicht stoppen
                 log.warning("Klima-Aufzeichnung Setup %s fehlgeschlagen: %s", sid, e)
+                smp = None
+            try:
+                await notify.climate_check(s, sid, smp)
+            except Exception as e:
+                log.warning("Klima-Alarm Setup %s fehlgeschlagen: %s", sid, e)
+
+
+async def tasks_notify_job():
+    with Session(engine) as s:
+        try:
+            if await notify.tasks_job(s):
+                log.info("Aufgaben-Push gesendet")
+        except Exception as e:
+            log.warning("Aufgaben-Push fehlgeschlagen: %s", e)
 
 
 def aggregate_job():
@@ -59,6 +73,7 @@ async def lifespan(app: FastAPI):
     interval = int(options().get("climate_interval_minutes", 10) or 10)
     sched.add_job(sample_job, "interval", minutes=interval, id="climate", next_run_time=None)
     sched.add_job(aggregate_job, "cron", hour=3, minute=17, id="aggregate")
+    sched.add_job(tasks_notify_job, "interval", minutes=5, id="tasks_notify")
     sched.start()
     sched.modify_job("climate", next_run_time=__import__("datetime").datetime.now())
     log.info("Grow-Tagebuch %s gestartet, Klima alle %s min", __version__, interval)

@@ -10,10 +10,12 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Ingress-Port 8099, liest HA nur (SUPERVISOR_TOKEN → http://supervisor/core/api). Daten in `/data` (SQLite `grow.db`, Fotos).
 - Backend `grow_tagebuch/backend/app`: FastAPI + SQLModel (pinned: fastapi 0.115.14, sqlmodel 0.0.24), APScheduler (Klima alle 10 min, Verdichtung 03:17).
   Neue Spalten migriert `db._add_missing_columns` automatisch (nur optionale Felder/Defaults anhängen).
+  Push über ntfy in `notify.py` (Einstellungen in Setting `notify`, Fallback Add-on-Optionen; Job alle 5 min für die
+  tägliche Aufgabenliste, Klima-Alarm hängt am Klima-Job; Alarm-Zustand nur im Speicher). API `GET/PUT /api/notify`, `POST /api/notify/test` (`kind=tasks`).
   Logik in `logic/` (phases, feeding, light, space, climate, training), Kataloge `training_data.py`, `germination_data.py`,
   `living_soil_data.py`, `pest_data.py`; Sorten-Recherche `strain_info.py` (Claude-API, Websuche → Structured Outputs).
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 38 grün, Stand 0.8.0).
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 44 grün, Stand 0.9.0).
 
 ## Release-Ablauf (immer so)
 
@@ -39,6 +41,8 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 - Sensoren: Zelt `sensor.homegrow_probe_sensor_sonden_*` (Temperatur, Luftfeuchtigkeit, VPD), Lampe Stufe
   `sensor.homegrow_port_2_aktuelle_leistung`, Lampe an/aus `binary_sensor.homegrow_port_2_zustand`, Abluft Port 1,
   Heizung `switch.steckdose_growzelt_heizung`, Heizmatte `switch.steckdose_heizmatte`, Raum `sensor.sensor_display_grow_room_*`.
+- ntfy: Topic `grow_HA_Tagebuxh_App` auf ntfy.sh (so von Kilian vorgegeben, in der App gespeichert). Aufgaben täglich 08:00,
+  Klima-Alarm Standard (deutliche Abweichung > 30 min, Wiederholung 3 h), Sensor-Ausfall 30 min. Kein HA-Notify – App bleibt lesend.
 - Claude-API-Schlüssel steht in der Add-on-Konfiguration (`anthropic_api_key`), nie im Code. Schlüssel ist auf Workspace „Default“ beschränkt.
 
 ## Setup (Stand 01.11.2026)
@@ -64,4 +68,6 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 
 - Dosierungen von den Etiketten nachtragen, sobald Kilian Fotos schickt (DiMikro, Rootmax, Ackerschachtelhalm,
   Brennnesselpulver, Aloe-Puder, Neem Cake, CalMag).
-- Phase 1b (ntfy-Push, Topfgewicht lernen, Export) und Phase 2 (KI-Klimacheck, freie Frage) – vorgeschlagen, nicht gestartet.
+- Phase 1b: ntfy-Push erledigt (0.9.0). Topfgewicht-Lernen bewusst erst beim nächsten Durchgang (Kilian 08.11.2026:
+  Erde schon feucht, keine Waage; dann Topf mit trockener Erde vor dem ersten Gießen wiegen). Export (CSV) offen.
+- Phase 2 (KI-Klimacheck, freie Frage) – erst sinnvoll, wenn mehr Daten aus Durchgang 3 vorliegen.
