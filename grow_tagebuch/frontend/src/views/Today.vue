@@ -40,7 +40,7 @@ onUnmounted(() => clearInterval(timer))
         <div class="row between">
           <div>
             <h1>{{ r.run.name }}</h1>
-            <p class="small muted">{{ fmt.dateLong(data.date) }}, Licht {{ r.run.light_hours }}/{{ 24 - r.run.light_hours }}</p>
+            <p class="small muted"><template v-if="r.setup">{{ r.setup.name }} · </template>{{ fmt.dateLong(data.date) }}, Licht {{ r.run.light_hours }}/{{ 24 - r.run.light_hours }}</p>
           </div>
           <router-link :to="`/run/${r.run.id}`" class="btn ghost small">Bearbeiten</router-link>
         </div>
@@ -54,7 +54,7 @@ onUnmounted(() => clearInterval(timer))
           <span v-if="c.next_task" class="small muted"><br />Nächster Schritt {{ fmt.date(c.next_task.due_on) }}: {{ c.next_task.title }}</span>
         </router-link>
 
-        <ClimateStrip :climate="r.climate" :light="r.light" />
+        <ClimateStrip :climate="r.climate" :light="r.light" :setup-id="r.run.setup_id" :run-id="r.run.id" />
         <p v-for="m in r.light.messages" :key="m" class="note warn small">{{ m }}</p>
 
         <div v-if="r.tasks.length" class="panel stack">
@@ -126,11 +126,17 @@ onUnmounted(() => clearInterval(timer))
         </article>
         </div>
       </section>
+
+      <router-link v-if="data.runs.length" to="/mehr/durchgaenge?neu=1" class="panel add">
+        <span class="plus">+</span><span><strong>Weiterer Durchgang</strong><br /><span class="small muted">z. B. im zweiten Zelt</span></span>
+      </router-link>
     </template>
   </main>
 </template>
 
 <style scoped>
+.add { display: flex; gap: 14px; align-items: center; text-decoration: none; border-style: dashed; }
+.add .plus { font-size: 1.8rem; line-height: 1; color: var(--leaf); width: 32px; text-align: center; }
 .plants { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
 .plant { display: flex; flex-direction: column; }
 .plant .actions { margin-top: auto; padding-top: 12px; }

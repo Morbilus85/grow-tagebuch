@@ -20,9 +20,14 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   wenn HA-Ingress trennt (Logs „Wasser-/Erde-Recherche für … gespeichert“). `GET /api/ai/status`.
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
   „Mehr“ (seit 0.10.0) = nur Kachel-Menü in Gruppen; Unterseiten `/mehr/durchgaenge`, `/mehr/sorten`, `/mehr/aufgaben`,
-  `/mehr/erde-wasser` (Erde + Wasser bewusst zusammen), `/mehr/einstellungen` (Push, Haushalt, Sensoren, Export).
+  `/mehr/erde-wasser` (Erde + Wasser bewusst zusammen), `/mehr/zelte` (Zelte + Sensoren je Zelt),
+  `/mehr/einstellungen` (Push, Haushalt, Export).
+  Mehrere Zelte (0.11.0): `Setup` = Zelt mit `medium` (erde|rdwc), `status` (geplant|aktiv|abgebaut), `lamp`; `POST /api/setups`.
+  Klima `/klima?zelt=<setup_id>`, Licht `/licht?run=<run_id>` mit Umschalter. Lichtmodell nur aus Messpunkten des eigenen
+  Zelts (kein Rückfall auf Ionframe). Eigene Produkte: Key `custom_…`, nur diese per `DELETE /api/products/{id}` löschbar;
+  sie tauchen im Gieß-Assistent nur auf, wenn ein Düngeschema ihren Key enthält.
   Neue Bereiche als eigene Kachel/Seite anlegen, nicht wieder alles auf eine Seite.
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 45 grün, Stand 0.10.0).
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 46 grün, Stand 0.11.0).
 
 ## Release-Ablauf (immer so)
 
@@ -72,6 +77,12 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 - Aufgaben: pH-Meter kalibrieren (14 d), Gelbtafeln prüfen (7 d), Töpfe drehen (7 d).
 
 ## Offen
+
+- Zweites Zelt (Abstellraum): Homebox 100×100×200 fest, Lampe Spider Farmer SE5000, wahrscheinlich RDWC (Fertigsystem,
+  2 Plätze, mineralisch, keine Osmose; Leitungswasser-EC ca. 0,44). Rest noch nicht gekauft. In der App als Zelt
+  „geplant“ anlegen. RDWC-Teil bauen, sobald System + Dünger feststehen: Reservoir-Log (Wechsel/Nachfüllen, l, EC, pH,
+  Wassertemp.), Zielbereiche (pH 5,8–6,2, EC je Phase minus Grund-EC, Wasser 18–20 °C), Aufgaben, Push > 22 °C Wassertemp.,
+  Wassertemperatur-Sensor in HA vorsehen. SE5000 braucht eigene Lichtkalibrierung.
 
 - Dosierungen von den Etiketten nachtragen, sobald Kilian Fotos schickt (DiMikro, Rootmax, Ackerschachtelhalm,
   Brennnesselpulver, Aloe-Puder, Neem Cake, CalMag).

@@ -24,6 +24,9 @@ class Setup(SQLModel, table=True):
     height_cm: Optional[int] = None
     lamp_hang_cm: int = 15  # Aufhängung + Lampenkörper, geht von der Höhe ab
     notes: str = ""
+    medium: str = "erde"  # erde | rdwc
+    status: str = "aktiv"  # geplant | aktiv | abgebaut
+    lamp: str = ""  # z. B. „Spider Farmer SE5000“
 
 
 class Equipment(SQLModel, table=True):

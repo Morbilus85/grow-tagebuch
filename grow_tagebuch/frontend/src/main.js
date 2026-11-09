@@ -15,6 +15,7 @@ import Strains from './views/Strains.vue'
 import Tasks from './views/Tasks.vue'
 import SoilWater from './views/SoilWater.vue'
 import Settings from './views/Settings.vue'
+import Tents from './views/Tents.vue'
 import Seeds from './views/Seeds.vue'
 import StrainView from './views/StrainView.vue'
 import Inventory from './views/Inventory.vue'
@@ -42,6 +43,7 @@ const router = createRouter({
     { path: '/mehr/aufgaben', component: Tasks },
     { path: '/mehr/erde-wasser', component: SoilWater },
     { path: '/mehr/einstellungen', component: Settings },
+    { path: '/mehr/zelte', component: Tents },
     { path: '/run/:id', component: RunEdit },
     { path: '/run/:id/samen', component: Seeds },
     { path: '/sorte/:id', component: StrainView },

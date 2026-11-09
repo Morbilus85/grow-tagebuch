@@ -3,22 +3,23 @@ import { computed, onMounted, ref } from 'vue'
 import { api } from '../api.js'
 import { today } from '../util.js'
 
-const d = ref({ runs: [], strains: [], tasks: [], soils: [], waters: [], notify: null })
+const d = ref({ runs: [], strains: [], tasks: [], soils: [], waters: [], notify: null, setups: [] })
 
 async function load() {
-  const [runs, strains, tasks, soils, waters, notify] = await Promise.all(
-    ['runs', 'strains', 'tasks', 'soils', 'waters', 'notify'].map((p) => api.get(p).catch(() => null)))
-  d.value = { runs: runs || [], strains: strains || [], tasks: tasks || [], soils: soils || [], waters: waters || [], notify }
+  const [runs, strains, tasks, soils, waters, notify, setups] = await Promise.all(
+    ['runs', 'strains', 'tasks', 'soils', 'waters', 'notify', 'setups'].map((p) => api.get(p).catch(() => null)))
+  d.value = { runs: runs || [], strains: strains || [], tasks: tasks || [], soils: soils || [], waters: waters || [], notify, setups: setups || [] }
 }
 onMounted(load)
 
-const activeRun = computed(() => d.value.runs.find((r) => r.status === 'aktiv'))
+const activeRuns = computed(() => d.value.runs.filter((r) => r.status === 'aktiv'))
 const dueTasks = computed(() => d.value.tasks.filter((t) => t.due_on && t.due_on <= today()).length)
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 
 const groups = computed(() => [
   { title: 'Grow', items: [
-    { to: '/mehr/durchgaenge', name: 'Durchgänge', hint: activeRun.value ? `Aktiv: ${activeRun.value.name}` : plural(d.value.runs.length, 'Durchgang', 'Durchgänge') },
+    { to: '/mehr/zelte', name: 'Zelte', hint: d.value.setups.map((s) => s.name + (s.status === 'geplant' ? ' (geplant)' : '')).join(' · ') || 'Zelte anlegen' },
+    { to: '/mehr/durchgaenge', name: 'Durchgänge', hint: activeRuns.value.length === 1 ? `Aktiv: ${activeRuns.value[0].name}` : activeRuns.value.length ? `${activeRuns.value.length} aktiv` : plural(d.value.runs.length, 'Durchgang', 'Durchgänge') },
     { to: '/mehr/sorten', name: 'Sorten', hint: plural(d.value.strains.length, 'Sorte', 'Sorten') + ' mit Steckbrief' },
     { to: '/mehr/aufgaben', name: 'Aufgaben', hint: dueTasks.value ? `${dueTasks.value} fällig` : plural(d.value.tasks.length, 'Aufgabe', 'Aufgaben') },
   ] },
@@ -34,7 +35,7 @@ const groups = computed(() => [
     { to: '/schaedlinge', name: 'Schädlinge & Krankheiten', hint: 'Befälle, Maßnahmen, Verlauf' },
   ] },
   { title: 'App', items: [
-    { to: '/mehr/einstellungen', name: 'Einstellungen', hint: `Push ${d.value.notify?.enabled ? 'aktiv' : 'aus'} · Sensoren · Haushalt · Export` },
+    { to: '/mehr/einstellungen', name: 'Einstellungen', hint: `Push ${d.value.notify?.enabled ? 'aktiv' : 'aus'} · Haushalt · Export` },
   ] },
 ])
 </script>

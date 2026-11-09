@@ -669,6 +669,20 @@ def setups(session: Session = S):
     return out
 
 
+SETUP_FIELDS = ("name", "kind", "indoor", "width_cm", "depth_cm", "height_cm", "lamp_hang_cm", "notes", "medium", "status", "lamp")
+
+
+@api.post("/setups")
+def create_setup(data: dict, session: Session = S):
+    if not (data.get("name") or "").strip():
+        raise HTTPException(400, "Name fehlt")
+    s = _apply(Setup(name=data["name"].strip()), {k: v for k, v in data.items() if k in SETUP_FIELDS})
+    session.add(s)
+    session.commit()
+    session.refresh(s)
+    return {**s.model_dump(), "equipment": [], "sensors": []}
+
+
 @api.patch("/setups/{sid}")
 def update_setup(sid: int, data: dict, session: Session = S):
     s = _apply(_get(session, Setup, sid), data)
@@ -714,6 +728,16 @@ def update_product(pid: int, data: dict, session: Session = S):
     session.commit()
     session.refresh(p)
     return p
+
+
+@api.delete("/products/{pid}")
+def delete_product(pid: int, session: Session = S):
+    p = _get(session, Product, pid)
+    if not p.key.startswith("custom_"):
+        raise HTTPException(400, "Vorgegebene Produkte nicht löschen – als „nicht vorhanden“ markieren")
+    session.delete(p)
+    session.commit()
+    return {"ok": True}
 
 
 @api.post("/products")

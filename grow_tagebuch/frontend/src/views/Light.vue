@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api.js'
 import { fmt, rating, say } from '../util.js'
 
@@ -7,7 +8,11 @@ const t = ref(null)
 const info = ref(null)
 const form = ref({})
 const cal = ref({ distance_cm: 45, level: 7, point: 'A', ppfd: null })
-const run = computed(() => t.value?.runs[0])
+const route = useRoute()
+const router = useRouter()
+const runId = ref(Number(route.query.run) || null)
+const run = computed(() => t.value?.runs.find((r) => r.run.id === runId.value) || t.value?.runs[0])
+function pickRun(id) { runId.value = id; router.replace({ path: '/licht', query: { run: id } }); load() }
 const PH = { seedling: 'Sämling', veg: 'Wachstum', bloom: 'Blüte' }
 
 async function load() {
@@ -43,6 +48,10 @@ onMounted(load)
 <template>
   <main class="page stack-lg" v-if="run">
     <h1>Licht</h1>
+    <div v-if="t.runs.length > 1" class="row" role="group" aria-label="Zelt">
+      <button v-for="r in t.runs" :key="r.run.id" :class="{ primary: r.run.id === run.run.id }" @click="pickRun(r.run.id)">{{ r.setup?.name || r.run.name }}</button>
+    </div>
+    <p v-if="run.setup?.lamp" class="small muted">{{ run.setup.name }} · {{ run.setup.lamp }}</p>
 
     <section class="panel stack">
       <div class="row between">

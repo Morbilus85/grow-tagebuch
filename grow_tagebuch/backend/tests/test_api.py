@@ -248,3 +248,22 @@ def test_water_soil_info(monkeypatch):
         assert r["product"] == "Floragard Grow Mix Organic" and r["info"]["n_mg_l"] == 250
         assert r["prefertilized_weeks"] == s["prefertilized_weeks"]  # Vorschlag wird nicht automatisch übernommen
         assert c.get("/api/ai/status").json() == {"available": False}
+
+
+def test_second_tent_and_custom_product():
+    with TestClient(app) as c:
+        assert c.post("/api/setups", json={"name": " "}).status_code == 400
+        t = c.post("/api/setups", json={"name": "Homebox 100", "width_cm": 100, "depth_cm": 100, "height_cm": 200,
+                                         "medium": "rdwc", "status": "geplant", "lamp": "Spider Farmer SE5000", "id": 99}).json()
+        assert t["id"] != 99 and t["medium"] == "rdwc" and t["sensors"] == []
+        assert any(s["name"] == "Homebox 100" and s["status"] == "geplant" for s in c.get("/api/setups").json())
+        run = c.post("/api/runs", json={"name": "RDWC Test", "setup_id": t["id"], "start_date": "2026-11-09"}).json()
+        assert run["setup_id"] == t["id"]
+        assert c.delete(f"/api/setups/{t['id']}").status_code == 400  # Durchgang hängt dran
+
+        p = c.post("/api/products", json={"name": "Flora Gro", "brand": "GHE", "kind": "mineral", "unit": "ml",
+                                           "in_stock": False}).json()
+        assert p["key"].startswith("custom_") and p["in_stock"] is False
+        assert c.delete(f"/api/products/{p['id']}").json() == {"ok": True}
+        fixed = next(x for x in c.get("/api/products").json() if not x["key"].startswith("custom_"))
+        assert c.delete(f"/api/products/{fixed['id']}").status_code == 400

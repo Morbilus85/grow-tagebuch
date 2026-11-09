@@ -1,5 +1,6 @@
 <script setup>
-import { nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler } from 'chart.js'
 import { api } from '../api.js'
 import { fmt } from '../util.js'
@@ -8,6 +9,13 @@ import ClimateStrip from '../components/ClimateStrip.vue'
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler)
 
 const runs = ref([])
+const setups = ref([])
+const setupId = ref(null)
+const route = useRoute()
+const router = useRouter()
+// Zelte zum Umschalten: mit aktivem Durchgang oder verknüpften Sensoren
+const tents = computed(() => setups.value.filter((s) => s.sensors.length || runs.value.some((r) => r.run.setup_id === s.id)))
+const shown = computed(() => runs.value.filter((r) => r.run.setup_id === setupId.value))
 const hours = ref(48)
 const rows = ref([])
 const canvas = ref(null)
@@ -16,10 +24,11 @@ let chart
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
 
 async function load() {
-  const t = await api.get('today')
+  const [t, se] = await Promise.all([api.get('today'), api.get('setups')])
   runs.value = t.runs
-  const setup = t.runs[0]?.run.setup_id || 1
-  rows.value = await api.get(`climate/${setup}?hours=${hours.value}`)
+  setups.value = se
+  setupId.value = setupId.value || Number(route.query.zelt) || t.runs[0]?.run.setup_id || se[0]?.id
+  rows.value = await api.get(`climate/${setupId.value}?hours=${hours.value}`)
   await nextTick()
   draw()
 }
@@ -50,6 +59,7 @@ function draw() {
   })
 }
 function setRange(h) { hours.value = h; load() }
+function pickTent(id) { setupId.value = id; router.replace({ path: '/klima', query: { zelt: id } }); load() }
 onMounted(load)
 onUnmounted(() => chart?.destroy())
 </script>
@@ -57,8 +67,13 @@ onUnmounted(() => chart?.destroy())
 <template>
   <main class="page stack-lg">
     <h1>Klima</h1>
-    <template v-for="r in runs" :key="r.run.id">
-      <ClimateStrip :climate="r.climate" :light="r.light" />
+    <div v-if="tents.length > 1" class="row" role="group" aria-label="Zelt">
+      <button v-for="s in tents" :key="s.id" :class="{ primary: s.id === setupId }" @click="pickTent(s.id)">{{ s.name }}</button>
+    </div>
+    <p v-if="!shown.length" class="small muted">Kein aktiver Durchgang in diesem Zelt – Zielbereiche erst mit Pflanzen.</p>
+    <template v-for="r in shown" :key="r.run.id">
+      <p v-if="shown.length > 1" class="small muted">{{ r.run.name }}</p>
+      <ClimateStrip :climate="r.climate" :light="r.light" :setup-id="r.run.setup_id" :run-id="r.run.id" />
       <div class="panel grid3 small">
         <div><p class="muted">Raum</p><p class="num">{{ fmt.n(r.climate.room_temp) }} °C, {{ fmt.n(r.climate.room_rh, 0) }} %</p></div>
         <div><p class="muted">Heizung / Heizmatte</p>

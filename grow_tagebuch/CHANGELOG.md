@@ -1,3 +1,14 @@
+## 0.11.0
+
+- Mehrere Zelte: neue Seite Mehr → Zelte (anlegen, Maße, Lampe, Medium Erde/RDWC, Status geplant/in Betrieb/abgebaut,
+  Sensoren je Zelt – die Sensoren sind aus den Einstellungen hierher umgezogen).
+- Heute: Zeltname über jedem Durchgang, unten „+ Weiterer Durchgang“. Beim Anlegen wird das freie Zelt vorausgewählt.
+- Klima und Licht: Umschalter zwischen den Zelten; Klimaleiste unter „Heute“ öffnet direkt das richtige Zelt.
+  Ohne eigene Lichtmessung rechnet ein Zelt kein PPFD (keine Fremdwerte der Ionframe).
+- Inventar: eigene Produkte hinzufügen (Name, Marke, Art inkl. Mineraldünger/Hydro-Zusatz, Einheit, Dosis, vorhanden
+  oder nicht – dann als Einkaufsliste unter „Nicht vorhanden“), bearbeiten und löschen. Vorgegebene Produkte bleiben.
+- RDWC ist am Zelt vormerkbar; Reservoir-Protokoll, Zielwerte und Mineral-Düngeplan folgen, wenn System und Dünger feststehen.
+
 ## 0.10.0
 
 - „Mehr“ aufgeräumt: nur noch Kacheln in Gruppen (Grow · Erde, Wasser & Dünger · Wissen · App), jede mit eigener Seite

@@ -3,20 +3,13 @@ import { onMounted, ref } from 'vue'
 import { api } from '../api.js'
 import { fmt, say } from '../util.js'
 
-const ROLES = { temp: 'Temperatur', rh: 'Luftfeuchte', vpd: 'VPD', light_level: 'Lampe Stufe', light_on: 'Lampe an/aus',
-  exhaust_level: 'Abluft Stufe', heater_switch: 'Heizung', heatmat_switch: 'Heizmatte', room_temp: 'Raum Temperatur', room_rh: 'Raum Feuchte' }
-const setups = ref([])
-const sensorEdit = ref({})
 const hh = ref(null)
 const nt = ref(null)
 const ntBusy = ref(false)
 
 async function load() {
-  const [se, h, n] = await Promise.all([api.get('setups'), api.get('household'), api.get('notify')])
-  for (const s of se) sensorEdit.value[s.id] = Object.fromEntries(Object.keys(ROLES).map((k) => [k, s.sensors.find((x) => x.role === k)?.entity_id || '']))
-  ;[setups.value, hh.value, nt.value] = [se, h, n]
+  ;[hh.value, nt.value] = await Promise.all([api.get('household'), api.get('notify')])
 }
-async function saveSensors(id) { await api.put(`setups/${id}/sensors`, sensorEdit.value[id]); say('Sensoren gespeichert') }
 async function saveHousehold() {
   hh.value = await api.put('household', { adults: hh.value.adults })
   say('Haushalt gespeichert')
@@ -90,15 +83,6 @@ onMounted(load)
       </div>
     </details>
 
-    <details class="panel" v-for="s in setups" :key="s.id">
-      <summary><h2>Sensoren</h2><span class="small muted">{{ s.name }}</span></summary>
-      <div class="stack" style="margin-top:12px">
-        <p class="small muted">Entitäten aus Home Assistant. Die App liest nur, sie schaltet nichts.</p>
-        <label v-for="(label, role) in ROLES" :key="role" class="field"><span>{{ label }}</span>
-          <input v-model="sensorEdit[s.id][role]" placeholder="sensor.…" spellcheck="false" autocapitalize="off" /></label>
-        <button @click="saveSensors(s.id)">Speichern</button>
-      </div>
-    </details>
 
     <details class="panel">
       <summary><h2>Daten</h2><span class="small muted">Export</span></summary>
