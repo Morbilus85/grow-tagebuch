@@ -1,3 +1,15 @@
+## 0.10.0
+
+- „Mehr“ aufgeräumt: nur noch Kacheln in Gruppen (Grow · Erde, Wasser & Dünger · Wissen · App), jede mit eigener Seite
+  und Kurzinfo (aktiver Durchgang, fällige Aufgaben, Push an/aus). Neue Seiten Durchgänge, Sorten, Aufgaben,
+  Erde & Wasser, Einstellungen (Push, Haushalt & KCanG, Sensoren, Export – aufklappbar). Reiter „Mehr“ bleibt auf
+  allen Unterseiten markiert.
+- Erde & Wasser: Wasserwerte per Knopf aus dem Internet (Ort/Stadtteil → Trinkwasseranalyse des Versorgers: EC, pH,
+  Ca, Mg, Na, K, Cl, Sulfat, Nitrat, Härte, Säurekapazität, Versorger/Gebiet, Hinweise, Quellen). Alle Werte editierbar.
+- Erde-Steckbrief per Knopf (Produktname → Herstellerangaben: Zusammensetzung, enthaltene Dünger, N/P₂O₅/K₂O/Mg,
+  Salz, pH, Vorratsdüngung, Hinweise zur Abstimmung mit BioBizz). Weicht die Herstellerangabe von den Düngeplan-
+  Einstellungen ab, lassen sie sich mit „Übernehmen“ setzen – nie automatisch. „Neue Erde“ anlegen mit Recherche.
+
 ## 0.9.0
 
 - Push-Benachrichtigungen über ntfy (Mehr → Push-Benachrichtigungen):

@@ -10,6 +10,11 @@ import Climate from './views/Climate.vue'
 import Light from './views/Light.vue'
 import More from './views/More.vue'
 import RunEdit from './views/RunEdit.vue'
+import Runs from './views/Runs.vue'
+import Strains from './views/Strains.vue'
+import Tasks from './views/Tasks.vue'
+import SoilWater from './views/SoilWater.vue'
+import Settings from './views/Settings.vue'
 import Seeds from './views/Seeds.vue'
 import StrainView from './views/StrainView.vue'
 import Inventory from './views/Inventory.vue'
@@ -32,6 +37,11 @@ const router = createRouter({
     { path: '/klima', component: Climate },
     { path: '/licht', component: Light },
     { path: '/mehr', component: More },
+    { path: '/mehr/durchgaenge', component: Runs },
+    { path: '/mehr/sorten', component: Strains },
+    { path: '/mehr/aufgaben', component: Tasks },
+    { path: '/mehr/erde-wasser', component: SoilWater },
+    { path: '/mehr/einstellungen', component: Settings },
     { path: '/run/:id', component: RunEdit },
     { path: '/run/:id/samen', component: Seeds },
     { path: '/sorte/:id', component: StrainView },

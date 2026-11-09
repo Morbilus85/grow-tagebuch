@@ -38,7 +38,7 @@ onMounted(load)
 <template>
   <main class="page stack-lg" v-if="s">
     <div>
-      <router-link to="/mehr" class="small muted">Zurück</router-link>
+      <router-link to="/mehr/sorten" class="small muted">Zurück</router-link>
       <h1 style="margin-top:8px">{{ s.name }}</h1>
       <p class="muted">{{ s.breeder }}<template v-if="s.plants"> · {{ s.plants }} Pflanzen im Tagebuch</template></p>
     </div>

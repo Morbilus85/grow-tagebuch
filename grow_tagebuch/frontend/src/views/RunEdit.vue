@@ -54,7 +54,7 @@ async function removeRun() {
   if (!confirm(`„${run.value.name}“ mit allen Pflanzen, Einträgen und Fotos endgültig löschen? Nur für Fehleingaben gedacht.`)) return
   await api.del(`runs/${run.value.id}`)
   say('Durchgang gelöscht')
-  router.push('/mehr')
+  router.push('/mehr/durchgaenge')
 }
 async function doAbort() {
   const a = ab.value
@@ -74,7 +74,7 @@ onMounted(load)
 
 <template>
   <main class="page stack-lg" v-if="run">
-    <router-link to="/mehr" class="small muted">Zurück</router-link>
+    <router-link to="/mehr/durchgaenge" class="small muted">Zurück</router-link>
     <h1>{{ run.name }}</h1>
 
     <section class="stack">

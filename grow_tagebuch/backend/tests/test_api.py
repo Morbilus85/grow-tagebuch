@@ -214,3 +214,37 @@ def test_notify_settings_and_push(monkeypatch):
                                    "due_on": "2026-11-01"})
         assert c.post("/api/notify/test", json={"kind": "tasks"}).json()["ok"]
         assert "Gelbtafeln prüfen" in sent[-1][2]
+
+
+def test_water_soil_info(monkeypatch):
+    from app import material_info
+    water = material_info.to_water({"supplier": "Stadtwerke Essen", "supply_area": "WW Überruhr", "analysis_date": "2025",
+                                    "conductivity_us_cm": 470, "ph": 7.9, "calcium_mg_l": 52, "magnesium_mg_l": 9.5,
+                                    "sodium_mg_l": 0, "hardness_range": "mittel", "notes": ["pH senken"]},
+                                   [{"url": "https://w", "title": "W"}])
+    assert water["fields"]["ec"] == 0.47 and "na_mg_l" not in water["fields"]
+    soil = material_info.to_soil({"product": "Floragard Grow Mix Organic", "fertilization": "vorgedüngt",
+                                  "components": [{"name": "Weißtorf", "share": "40 %"}, {"name": ""}],
+                                  "n_mg_l": 250, "k2o_mg_l": 0, "nutrient_weeks": 4, "schedule_type": "all_mix",
+                                  "feeding_notes": ["ab Woche 4 Bio-Grow"], "fertilizers": [], "specials": []}, [])
+    assert soil["info"]["nutrient_weeks"] == 4 and len(soil["info"]["components"]) == 1 and "k2o_mg_l" not in soil["info"]
+
+    async def fake_water(city):
+        return water
+
+    async def fake_soil(product, mix=""):
+        assert "Wurmhumus" in mix or mix == "" or mix
+        return soil
+    monkeypatch.setattr(material_info, "water_lookup", fake_water)
+    monkeypatch.setattr(material_info, "soil_lookup", fake_soil)
+    with TestClient(app) as c:
+        w = c.get("/api/waters").json()[0]
+        assert c.post(f"/api/waters/{w['id']}/refresh", json={}).status_code == 400  # kein Ort
+        r = c.post(f"/api/waters/{w['id']}/refresh", json={"city": "Herne"}).json()
+        assert r["city"] == "Herne" and r["ec"] == 0.47 and r["name"] == "Leitungswasser Herne"
+        assert r["info"]["supplier"] == "Stadtwerke Essen" and r["source_url"] == "https://w"
+        s = c.get("/api/soils").json()[0]
+        r = c.post(f"/api/soils/{s['id']}/refresh", json={"product": "Floragard Grow Mix Organic"}).json()
+        assert r["product"] == "Floragard Grow Mix Organic" and r["info"]["n_mg_l"] == 250
+        assert r["prefertilized_weeks"] == s["prefertilized_weeks"]  # Vorschlag wird nicht automatisch übernommen
+        assert c.get("/api/ai/status").json() == {"available": False}

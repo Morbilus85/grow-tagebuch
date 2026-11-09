@@ -110,13 +110,13 @@ def _extract_json(text: str) -> dict:
     return json.loads(raw)
 
 
-async def _research(client, headers, name: str, prompt: str, sources: dict) -> str:
+async def _research(client, headers, name: str, prompt: str, sources: dict, max_uses: int = 3) -> str:
     """Websuche mit pause_turn-Fortsetzung; leere Antwort einmal wiederholen."""
     data: dict = {}
     for attempt in range(2):
         messages = [{"role": "user", "content": prompt}]
         body = {"model": MODEL, "max_tokens": 16000, "messages": messages,
-                "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}]}
+                "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": max_uses}]}
         texts: list[str] = []
         for _ in range(4):  # pause_turn: Antwort fortsetzen lassen
             r = await client.post(API_URL, headers=headers, json=body)
@@ -139,13 +139,14 @@ async def _research(client, headers, name: str, prompt: str, sources: dict) -> s
     return ""
 
 
-async def _extract(client, headers, name: str, research: str) -> Optional[dict]:
+async def _extract(client, headers, name: str, research: str, schema: Optional[dict] = None,
+                   instruction: Optional[str] = None) -> Optional[dict]:
+    instruction = instruction or (f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf "
+                                  f"Deutsch, unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten.")
     extract = {
         "model": MODEL, "max_tokens": 8000,
-        "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
-        "messages": [{"role": "user", "content":
-                      f"Übertrage diese Recherche zur Sorte „{name}“ vollständig in den Steckbrief. Alle Texte auf Deutsch, "
-                      f"unbekannte Texte leer, unbekannte Zahlen 0, jede Trainingstechnik genau einmal bewerten.\n\n{research}"}],
+        "output_config": {"format": {"type": "json_schema", "schema": schema or SCHEMA}},
+        "messages": [{"role": "user", "content": f"{instruction}\n\n{research}"}],
     }
     r = await client.post(API_URL, headers=headers, json=extract)
     if r.status_code != 200:

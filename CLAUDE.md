@@ -14,8 +14,15 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   tägliche Aufgabenliste, Klima-Alarm hängt am Klima-Job; Alarm-Zustand nur im Speicher). API `GET/PUT /api/notify`, `POST /api/notify/test` (`kind=tasks`).
   Logik in `logic/` (phases, feeding, light, space, climate, training), Kataloge `training_data.py`, `germination_data.py`,
   `living_soil_data.py`, `pest_data.py`; Sorten-Recherche `strain_info.py` (Claude-API, Websuche → Structured Outputs).
+  Erde/Wasser-Recherche `material_info.py` (nutzt `_research`/`_extract` aus strain_info): `POST /api/waters/{id}/refresh`
+  `{city}` überschreibt Wasserwerte (EC in mS/cm, Versorger-Analyse), `POST /api/soils/{id}/refresh` `{product}` füllt nur
+  `info` – Düngeplan-Felder (Wochen, Schema-Typ) ändert nur Kilian per „Übernehmen“. Beide laufen über `_shielded` weiter,
+  wenn HA-Ingress trennt (Logs „Wasser-/Erde-Recherche für … gespeichert“). `GET /api/ai/status`.
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 44 grün, Stand 0.9.0).
+  „Mehr“ (seit 0.10.0) = nur Kachel-Menü in Gruppen; Unterseiten `/mehr/durchgaenge`, `/mehr/sorten`, `/mehr/aufgaben`,
+  `/mehr/erde-wasser` (Erde + Wasser bewusst zusammen), `/mehr/einstellungen` (Push, Haushalt, Sensoren, Export).
+  Neue Bereiche als eigene Kachel/Seite anlegen, nicht wieder alles auf eine Seite.
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 45 grün, Stand 0.10.0).
 
 ## Release-Ablauf (immer so)
 

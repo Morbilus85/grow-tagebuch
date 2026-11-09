@@ -754,6 +754,88 @@ def waters(session: Session = S):
     return session.exec(select(WaterProfile)).all()
 
 
+@api.get("/ai/status")
+def ai_status():
+    from . import strain_info
+    return {"available": bool(strain_info.api_key())}
+
+
+async def _shielded(coro) -> None:
+    """Recherche im Hintergrund: Abbruch der HTTP-Anfrage (HA-Ingress nach ca. 30 s) beendet sie nicht."""
+    task = asyncio.ensure_future(coro)
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+    try:
+        await asyncio.shield(task)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+
+
+async def _refresh_water(wid: int, city: str) -> None:
+    from . import material_info
+    from .db import engine
+    try:
+        r = await material_info.water_lookup(city)
+    except Exception:
+        log.exception("Wasser-Recherche für %s fehlgeschlagen", city)
+        raise
+    with Session(engine) as session:
+        w = _get(session, WaterProfile, wid)
+        for k, v in r["fields"].items():
+            setattr(w, k, v)
+        w.city = city
+        if w.source == "leitung":
+            w.name = f"Leitungswasser {city}"
+        w.source_url = (r["info"]["sources"] or [{}])[0].get("url", "")
+        w.measured_on = None
+        w.info = r["info"]
+        session.add(w)
+        session.commit()
+    log.info("Wasser-Recherche für %s gespeichert", city)
+
+
+@api.post("/waters/{wid}/refresh")
+async def water_refresh(wid: int, data: dict, session: Session = S):
+    w = _get(session, WaterProfile, wid)
+    city = (data.get("city") or w.city or "").strip()
+    if not city:
+        raise HTTPException(400, "Ort fehlt")
+    await _shielded(_refresh_water(wid, city))
+    session.expire_all()
+    return _get(session, WaterProfile, wid)
+
+
+async def _refresh_soil(sid: int, product: str) -> None:
+    from . import material_info
+    from .db import engine
+    with Session(engine) as session:
+        s = _get(session, SoilProfile, sid)
+        mix = ", ".join(f"{c.get('name')} {c.get('pct')} %" for c in (s.components or []) if c.get("name"))
+    try:
+        r = await material_info.soil_lookup(product, mix)
+    except Exception:
+        log.exception("Erde-Recherche für %s fehlgeschlagen", product)
+        raise
+    with Session(engine) as session:
+        s = _get(session, SoilProfile, sid)
+        s.product = product
+        s.info = r["info"]
+        session.add(s)
+        session.commit()
+    log.info("Erde-Recherche für %s gespeichert", product)
+
+
+@api.post("/soils/{sid}/refresh")
+async def soil_refresh(sid: int, data: dict, session: Session = S):
+    s = _get(session, SoilProfile, sid)
+    product = (data.get("product") or s.product or "").strip()
+    if not product:
+        raise HTTPException(400, "Produktname fehlt")
+    await _shielded(_refresh_soil(sid, product))
+    session.expire_all()
+    return _get(session, SoilProfile, sid)
+
+
 @api.patch("/waters/{wid}")
 def update_water(wid: int, data: dict, session: Session = S):
     w = _apply(_get(session, WaterProfile, wid), data)

@@ -33,7 +33,7 @@ onUnmounted(() => clearInterval(timer))
     <template v-if="data">
       <div v-if="!data.runs.length" class="panel empty stack">
         <h2>Kein aktiver Durchgang</h2>
-        <p class="muted">Lege unter „Mehr“ einen Run an.</p>
+        <p class="muted">Lege unter <router-link to="/mehr/durchgaenge">Mehr → Durchgänge</router-link> einen Durchgang an.</p>
       </div>
 
       <section v-for="r in data.runs" :key="r.run.id" class="stack">

@@ -1,5 +1,12 @@
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { toast } from './util.js'
+
+// Unterseiten aus „Mehr“ markieren den Reiter mit
+const route = useRoute()
+const MORE = ['/mehr', '/run', '/sorte', '/inventar', '/schema', '/training', '/keimung', '/living-soil', '/schaedlinge']
+const inMore = computed(() => MORE.some((p) => route.path === p || route.path.startsWith(p + '/')))
 </script>
 
 <template>
@@ -20,7 +27,7 @@ import { toast } from './util.js'
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="16" height="4" rx="1"/><path d="M7 12l-1.5 3M12 12v4M17 12l1.5 3M9.5 19h5"/></svg>
       Licht
     </router-link>
-    <router-link to="/mehr">
+    <router-link to="/mehr" :class="{ 'router-link-active': inMore }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
       Mehr
     </router-link>

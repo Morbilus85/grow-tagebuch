@@ -51,6 +51,8 @@ class SoilProfile(SQLModel, table=True):
     worm_humus_pct: int = 0
     components: list = Field(default_factory=list, sa_column=Column(JSON))
     notes: str = ""
+    product: str = ""  # Handelsname für die Recherche, z. B. „Floragard Grow Mix Organic“
+    info: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # Steckbrief aus dem Internet
 
 
 class WaterProfile(SQLModel, table=True):
@@ -71,6 +73,8 @@ class WaterProfile(SQLModel, table=True):
     carbonate_hardness_dh: Optional[float] = None
     measured_on: Optional[date] = None
     source_url: str = ""
+    city: str = ""  # Ort/Stadtteil für die Recherche
+    info: Optional[dict] = Field(default=None, sa_column=Column(JSON))  # Versorger, Analyse, Quellen
 
 
 class Product(SQLModel, table=True):
