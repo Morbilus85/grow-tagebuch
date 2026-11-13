@@ -37,7 +37,14 @@ async function load() {
     if (route.query.photo) setTimeout(() => fileInput.value?.click(), 300)
   }
 }
-function onFiles(e) { files.value = [...files.value, ...e.target.files] }
+// Einzeln wählen (kein `multiple`): Die HA-App auf Android liefert bei Mehrfachauswahl aus der Galerie oft eine leere Liste.
+function onFiles(e) {
+  const picked = [...(e.target.files || [])]
+  e.target.value = ''
+  if (!picked.length) { say('Kein Foto übernommen – bitte noch einmal wählen'); return }
+  files.value = [...files.value, ...picked.map((file) => ({ file, url: URL.createObjectURL(file) }))]
+}
+function dropFile(i) { URL.revokeObjectURL(files.value[i].url); files.value.splice(i, 1) }
 function addProduct() { f.value.products.push({ product_key: productList.value[0]?.key, amount: null, unit: productList.value[0]?.unit || 'ml' }) }
 function syncUnit(p) {
   const prod = products.value.find((x) => x.key === p.product_key)
@@ -52,7 +59,7 @@ async function save() {
     delete body.photos
     const l = editId.value ? await api.patch(`logs/${editId.value}`, body) : await api.post('logs', body)
     const failed = []
-    for (const file of files.value) {
+    for (const { file } of files.value) {
       try { await api.upload(`logs/${l.id}/photos`, await shrinkImage(file)) } catch (e) { failed.push(`${file.name}: ${e.message}`) }
     }
     files.value = []
@@ -137,13 +144,15 @@ onMounted(load)
       <div class="stack">
         <div class="row between">
           <span class="small muted">Fotos</span>
-          <button type="button" @click="fileInput.click()">Foto aufnehmen oder wählen</button>
+          <label class="btn filebtn">{{ files.length ? 'Weiteres Foto' : 'Foto aufnehmen oder wählen' }}
+            <input ref="fileInput" type="file" accept="image/*" @change="onFiles" />
+          </label>
         </div>
-        <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="onFiles" />
         <div class="thumbs" v-if="existingPhotos.length || files.length">
           <img v-for="ph in existingPhotos" :key="ph" :src="photoUrl(ph, true)" alt="Foto" @click="delPhoto(ph)" title="Antippen zum Löschen" />
-          <span v-for="(file, i) in files" :key="'n' + i" class="newfile small">{{ file.name }} (wird beim Speichern hochgeladen)</span>
+          <img v-for="(nf, i) in files" :key="'n' + i" :src="nf.url" class="newphoto" alt="Neues Foto" @click="dropFile(i)" title="Antippen zum Entfernen" />
         </div>
+        <p v-if="files.length" class="small muted">{{ files.length }} neue(s) Foto(s) – wird beim Speichern hochgeladen. Antippen entfernt.</p>
       </div>
 
       <button class="primary" :disabled="busy">{{ busy ? 'Speichert …' : 'Speichern' }}</button>
@@ -153,5 +162,8 @@ onMounted(load)
 
 <style scoped>
 .prod { display: grid; grid-template-columns: 1fr 96px 36px 44px; gap: 6px; align-items: center; }
+.filebtn { position: relative; overflow: hidden; cursor: pointer; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.newphoto { outline: 2px dashed var(--leaf); outline-offset: -2px; }
 .newfile { background: var(--sunken); border-radius: 8px; padding: 8px; overflow: hidden; text-overflow: ellipsis; aspect-ratio: 1; display: flex; align-items: center; }
 </style>

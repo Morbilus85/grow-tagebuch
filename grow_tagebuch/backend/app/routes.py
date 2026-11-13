@@ -517,6 +517,7 @@ async def upload_photo(lid: int, file: UploadFile = File(...), session: Session 
     _get(session, LogEntry, lid)
     raw = await file.read()
     if not raw:
+        log.warning("Foto-Upload für Eintrag %s leer (%s)", lid, file.filename)
         raise HTTPException(400, "Leere Datei")
     try:
         img = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
@@ -535,6 +536,7 @@ async def upload_photo(lid: int, file: UploadFile = File(...), session: Session 
     session.add(p)
     session.commit()
     session.refresh(p)
+    log.info("Foto %s für Eintrag %s gespeichert (%dx%d, %d KB hochgeladen)", p.id, lid, img.width, img.height, len(raw) // 1024)
     return p
 
 

@@ -1,3 +1,10 @@
+## 0.11.1
+
+- Fotos im Eintrag: Auswahl wieder einzeln statt Mehrfachauswahl – die HA-App auf Android gab bei Mehrfachauswahl aus der
+  Galerie eine leere Liste zurück, der Eintrag wurde ohne Foto gespeichert. Mehrere Fotos: einfach nacheinander „Weiteres Foto“.
+- Gewählte Fotos erscheinen sofort als Vorschau (Antippen entfernt); kommt kein Foto an, gibt es einen Hinweis.
+- Log-Zeile „Foto … gespeichert“ bzw. Warnung bei leerem Upload.
+
 ## 0.11.0
 
 - Mehrere Zelte: neue Seite Mehr → Zelte (anlegen, Maße, Lampe, Medium Erde/RDWC, Status geplant/in Betrieb/abgebaut,
