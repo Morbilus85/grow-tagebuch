@@ -27,7 +27,9 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Zelts (kein Rückfall auf Ionframe). Eigene Produkte: Key `custom_…`, nur diese per `DELETE /api/products/{id}` löschbar;
   sie tauchen im Gieß-Assistent nur auf, wenn ein Düngeschema ihren Key enthält.
   Neue Bereiche als eigene Kachel/Seite anlegen, nicht wieder alles auf eine Seite.
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 46 grün, Stand 0.11.0).
+  Datei-Inputs nie mit `multiple`: Die HA-Android-App liefert bei Mehrfachauswahl aus der Galerie eine leere Liste
+  (bis 0.11.0 kam so kein einziges Foto an). Einzeln wählen, Vorschau zeigen; Uploads loggen „Foto … gespeichert“.
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 46 grün, Stand 0.11.1).
 
 ## Release-Ablauf (immer so)
 
