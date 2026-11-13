@@ -317,12 +317,23 @@ def abort_run(rid: int, data: dict, session: Session = S):
     return out
 
 
+def _delete_chats(session: Session, *conds) -> None:
+    from .models import AiChat, AiMessage
+    for c in session.exec(select(AiChat).where(*conds)).all():
+        for m in session.exec(select(AiMessage).where(AiMessage.chat_id == c.id)).all():
+            session.delete(m)
+        session.delete(c)
+    session.flush()
+
+
 @api.delete("/runs/{rid}")
 def delete_run(rid: int, session: Session = S):
     """Durchgang samt Pflanzen, Einträgen und Fotos löschen (für Fehleingaben).
     Offene Aufgaben und Schädlingsfälle wandern in den neuesten anderen Durchgang."""
     from .models import PestCase
+    from .models import AiChat
     run = _get(session, Run, rid)
+    _delete_chats(session, AiChat.run_id == rid)
     other = session.exec(select(Run).where(Run.id != rid).order_by(Run.status != "aktiv", Run.id.desc())).first()
     for l in session.exec(select(LogEntry).where(LogEntry.run_id == rid)).all():
         if other and l.case_id:
@@ -443,7 +454,9 @@ def update_plant(pid: int, data: dict, session: Session = S):
 
 @api.delete("/plants/{pid}")
 def delete_plant(pid: int, session: Session = S):
+    from .models import AiChat
     plant = _get(session, Plant, pid)
+    _delete_chats(session, AiChat.plant_id == pid)
     for l in session.exec(select(LogEntry).where(LogEntry.plant_id == pid)).all():
         _delete_log(session, l)
     session.delete(plant)
@@ -512,9 +525,7 @@ def delete_log(lid: int, session: Session = S):
     return {"ok": True}
 
 
-@api.post("/logs/{lid}/photos")
-async def upload_photo(lid: int, file: UploadFile = File(...), session: Session = S):
-    _get(session, LogEntry, lid)
+async def _save_photo(session: Session, lid: int, file: UploadFile) -> Photo:
     raw = await file.read()
     if not raw:
         log.warning("Foto-Upload für Eintrag %s leer (%s)", lid, file.filename)
@@ -538,6 +549,12 @@ async def upload_photo(lid: int, file: UploadFile = File(...), session: Session 
     session.refresh(p)
     log.info("Foto %s für Eintrag %s gespeichert (%dx%d, %d KB hochgeladen)", p.id, lid, img.width, img.height, len(raw) // 1024)
     return p
+
+
+@api.post("/logs/{lid}/photos")
+async def upload_photo(lid: int, file: UploadFile = File(...), session: Session = S):
+    _get(session, LogEntry, lid)
+    return await _save_photo(session, lid, file)
 
 
 @api.get("/photos/{phid}")
@@ -699,6 +716,8 @@ def delete_setup(sid: int, session: Session = S):
     s = _get(session, Setup, sid)
     if session.exec(select(Run).where(Run.setup_id == sid)).first():
         raise HTTPException(400, "Setup wird noch von einem Durchgang benutzt")
+    from .models import AiChat
+    _delete_chats(session, AiChat.setup_id == sid)
     for model in (Equipment, SensorMapping, LightCalibration, ClimateSample):
         for o in session.exec(select(model).where(model.setup_id == sid)).all():
             session.delete(o)
@@ -1384,8 +1403,175 @@ def plant_training(pid: int, session: Session = S):
 
 @api.get("/export")
 def export(session: Session = S):
+    from .models import AiChat, AiMessage
     data: dict[str, Any] = {}
     for model in (Setup, Equipment, SensorMapping, SoilProfile, WaterProfile, Product, FeedingSchedule, ScheduleEntry,
-                  Strain, LightCalibration, Run, Plant, LogEntry, Photo, Task, TrainingTechnique):
+                  Strain, LightCalibration, Run, Plant, LogEntry, Photo, Task, TrainingTechnique, AiChat, AiMessage):
         data[model.__tablename__] = [o.model_dump(mode="json") for o in session.exec(select(model)).all()]
     return data
+
+
+# ------------------------------------------------------------------ KI-Begutachtung & Fragen
+
+def _chat_dict(c) -> dict:
+    return {**c.model_dump(mode="json", exclude={"context"}),
+            "previous_photo_id": (c.context or {}).get("previous_photo_id")}
+
+
+def _start_answer(chat_id: int) -> None:
+    from . import ai_chat
+    task = asyncio.ensure_future(ai_chat.answer(chat_id))
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+
+
+@api.get("/ai/chats")
+def ai_chats(plant_id: Optional[int] = None, setup_id: Optional[int] = None, limit: int = 30, session: Session = S):
+    from .models import AiChat
+    q = select(AiChat)
+    if plant_id:
+        q = q.where(AiChat.plant_id == plant_id)
+    if setup_id:
+        q = q.where(AiChat.setup_id == setup_id)
+    return [_chat_dict(c) for c in session.exec(q.order_by(AiChat.created_at.desc()).limit(limit)).all()]
+
+
+@api.post("/ai/chats")
+async def ai_chat_create(data: dict, session: Session = S):
+    from . import ai_chat
+    from .models import AiChat, AiMessage
+    if not ai_chat.api_key():
+        raise HTTPException(400, "Kein Claude-API-Schlüssel hinterlegt (Add-on → Konfiguration).")
+    kind = data.get("kind") or "check"
+    plant_id, setup_id = data.get("plant_id"), data.get("setup_id")
+    if kind == "check" and not plant_id:
+        raise HTTPException(400, "Begutachten geht nur an einer Pflanze")
+    if not plant_id and not setup_id:
+        raise HTTPException(400, "Pflanze oder Zelt fehlt")
+    text = (data.get("text") or "").strip()
+    if kind == "frage" and not text:
+        raise HTTPException(400, "Bitte eine Frage eingeben")
+    chat = AiChat(kind=kind, plant_id=plant_id, setup_id=None if plant_id else setup_id)
+    if plant_id:
+        plant = _get(session, Plant, plant_id)
+        chat.run_id = plant.run_id
+        chat.title = ("Begutachtung " if kind == "check" else "Frage zu ") + plant.name
+    else:
+        setup = _get(session, Setup, setup_id)
+        run = session.exec(select(Run).where(Run.setup_id == setup_id, Run.status == "aktiv")
+                           .order_by(Run.start_date.desc())).first()
+        chat.run_id = run.id if run else None
+        chat.title = f"Frage zu Zelt {setup.name}"
+    if text:
+        chat.title += f": {text[:60]}"
+    photo_ids = [int(x) for x in (data.get("photo_ids") or [])]
+    if kind == "check" and not photo_ids:
+        photo_ids = ai_chat.latest_photos(session, plant_id)
+    session.add(chat)
+    session.flush()
+    ctx = {"text": ai_chat.build_context(session, chat)}
+    if kind == "check":
+        prev = ai_chat._previous_checks(session, plant_id, chat.id)
+        prev_msg = session.exec(select(AiMessage).where(AiMessage.chat_id == prev[0].id, AiMessage.role == "user")
+                                .order_by(AiMessage.id)).first() if prev else None
+        prev_photo = next((p for p in (prev_msg.photo_ids if prev_msg else []) if p not in photo_ids), None)
+        if prev_photo:
+            ctx["previous_photo_id"] = prev_photo
+    chat.context = ctx
+    chat.busy = True
+    session.add(AiMessage(chat_id=chat.id, role="user", text=text, photo_ids=photo_ids))
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+    _start_answer(chat.id)
+    log.info("KI-Gespräch %s gestartet (%s, %d Fotos)", chat.id, kind, len(photo_ids))
+    return _chat_dict(chat)
+
+
+@api.get("/ai/chats/{cid}")
+def ai_chat_get(cid: int, session: Session = S):
+    from . import ai_chat
+    from .models import AiChat, AiMessage
+    chat = _get(session, AiChat, cid)
+    ai_chat.release_stale(session, chat)
+    msgs = session.exec(select(AiMessage).where(AiMessage.chat_id == cid).order_by(AiMessage.id)).all()
+    return {"chat": _chat_dict(chat), "messages": [m.model_dump(mode="json") for m in msgs]}
+
+
+@api.post("/ai/chats/{cid}/messages")
+async def ai_chat_message(cid: int, data: dict, session: Session = S):
+    from .models import AiChat, AiMessage
+    chat = _get(session, AiChat, cid)
+    if chat.busy:
+        raise HTTPException(409, "Die KI antwortet noch")
+    text = (data.get("text") or "").strip()
+    photo_ids = [int(x) for x in (data.get("photo_ids") or [])]
+    if not text and not photo_ids:
+        raise HTTPException(400, "Nachricht ist leer")
+    session.add(AiMessage(chat_id=cid, role="user", text=text, photo_ids=photo_ids))
+    chat.busy, chat.error, chat.updated_at = True, "", now()
+    session.add(chat)
+    session.commit()
+    _start_answer(cid)
+    return {"ok": True}
+
+
+@api.post("/ai/chats/{cid}/retry")
+async def ai_chat_retry(cid: int, session: Session = S):
+    from .models import AiChat, AiMessage
+    chat = _get(session, AiChat, cid)
+    last = session.exec(select(AiMessage).where(AiMessage.chat_id == cid).order_by(AiMessage.id.desc())).first()
+    if chat.busy or not last or last.role != "user":
+        raise HTTPException(409, "Nichts zu wiederholen")
+    chat.busy, chat.error, chat.updated_at = True, "", now()
+    session.add(chat)
+    session.commit()
+    _start_answer(cid)
+    return {"ok": True}
+
+
+@api.post("/ai/chats/{cid}/photos")
+async def ai_chat_photo(cid: int, file: UploadFile = File(...), what: str = Form(""), session: Session = S):
+    """Foto für das Gespräch: landet zusätzlich im Tagebuch (Beobachtung an der Pflanze bzw. am Durchgang)."""
+    from .models import AiChat
+    chat = _get(session, AiChat, cid)
+    run_id = session.get(Plant, chat.plant_id).run_id if chat.plant_id else chat.run_id
+    if not run_id:
+        raise HTTPException(400, "Kein aktiver Durchgang für das Foto")
+    entry = LogEntry(run_id=run_id, plant_id=chat.plant_id, type="observation",
+                     text=f"Foto für KI-{'Check' if chat.kind == 'check' else 'Frage'}{': ' + what if what else ''}",
+                     tags=[f"ai_chat:{cid}"])
+    session.add(entry)
+    session.commit()
+    session.refresh(entry)
+    return await _save_photo(session, entry.id, file)
+
+
+@api.post("/ai/chats/{cid}/apply")
+def ai_chat_apply(cid: int, data: dict, session: Session = S):
+    from . import ai_chat
+    from .models import AiChat, AiMessage
+    chat = _get(session, AiChat, cid)
+    msg = _get(session, AiMessage, int(data["message_id"]))
+    if msg.chat_id != cid:
+        raise HTTPException(400, "Nachricht gehört nicht zu diesem Gespräch")
+    try:
+        return ai_chat.apply_suggestion(session, chat, msg, int(data["index"]))
+    except (IndexError, ValueError) as e:
+        raise HTTPException(400, str(e))
+
+
+@api.delete("/ai/chats/{cid}")
+def ai_chat_delete(cid: int, session: Session = S):
+    """Gespräch löschen. Fotos bleiben im Tagebuch, nur der KI-Check-Eintrag im Zeitstrahl verschwindet."""
+    from .models import AiChat, AiMessage
+    chat = _get(session, AiChat, cid)
+    for m in session.exec(select(AiMessage).where(AiMessage.chat_id == cid)).all():
+        session.delete(m)
+    log_id = chat.log_id
+    session.delete(chat)
+    session.flush()
+    if log_id and (entry := session.get(LogEntry, log_id)):
+        session.delete(entry)
+    session.commit()
+    return {"ok": True}

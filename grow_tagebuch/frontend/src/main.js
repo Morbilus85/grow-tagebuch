@@ -26,6 +26,8 @@ import Germination from './views/Germination.vue'
 import LivingSoil from './views/LivingSoil.vue'
 import Pests from './views/Pests.vue'
 import PestCase from './views/PestCase.vue'
+import AiNew from './views/AiNew.vue'
+import AiChat from './views/AiChat.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -54,6 +56,8 @@ const router = createRouter({
     { path: '/living-soil', component: LivingSoil },
     { path: '/schaedlinge', component: Pests },
     { path: '/schaedlinge/:id', component: PestCase },
+    { path: '/ki/neu', component: AiNew },
+    { path: '/ki/:id', component: AiChat },
     { path: '/living-soil/rezept/:key', component: LivingSoil },
     { path: '/keimung/:key', component: Germination },
     { path: '/training/:key', component: TrainingDetail },

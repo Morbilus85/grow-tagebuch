@@ -305,3 +305,35 @@ class TrainingTechnique(SQLModel, table=True):
     height_control: bool = False
     builtin: bool = True
     my_notes: str = ""
+
+
+# ---------------------------------------------------------------- KI-Gespräche
+
+class AiChat(SQLModel, table=True):
+    """Begutachtung („check“, mit Fotos) oder freie Frage („frage“) – an einer Pflanze oder einem Zelt."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    kind: str = "check"  # check | frage
+    plant_id: Optional[int] = Field(default=None, foreign_key="plant.id", index=True)
+    setup_id: Optional[int] = Field(default=None, foreign_key="setup.id", index=True)
+    run_id: Optional[int] = Field(default=None, foreign_key="run.id")
+    title: str = ""
+    created_at: datetime = Field(default_factory=now)
+    updated_at: datetime = Field(default_factory=now)
+    ampel: str = ""  # unauffaellig | beobachten | handeln
+    summary: str = ""  # Fazit, Vergleichsbasis für den nächsten Check
+    busy: bool = False
+    error: str = ""
+    cost_usd: float = 0.0
+    log_id: Optional[int] = Field(default=None, foreign_key="logentry.id")  # Eintrag im Zeitstrahl (nur Checks)
+    context: dict = Field(default_factory=dict, sa_column=Column(JSON))  # Eingabe-Snapshot der ersten Anfrage
+
+
+class AiMessage(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="aichat.id", index=True)
+    role: str  # user | assistant
+    ts: datetime = Field(default_factory=now)
+    text: str = ""
+    photo_ids: list = Field(default_factory=list, sa_column=Column(JSON))
+    data: dict = Field(default_factory=dict, sa_column=Column(JSON))  # strukturierte Antwort
+    usage: dict = Field(default_factory=dict, sa_column=Column(JSON))

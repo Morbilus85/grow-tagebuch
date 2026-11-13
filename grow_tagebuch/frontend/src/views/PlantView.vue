@@ -19,11 +19,15 @@ const techNames = ref({})
 const germMethods = ref([])
 const abort = ref(null)
 const strain = ref(null)
+const chats = ref([])
+const AMPEL = { unauffaellig: ['Unauffällig', 'ok'], beobachten: ['Beobachten', 'warn'], handeln: ['Handeln', 'bad'] }
+const chatOf = (l) => (l.tags || []).map((t) => /^ai_chat:(\d+)$/.exec(t)).find(Boolean)?.[1]
 
 async function load() {
   const id = route.params.id
   s.value = await api.get(`plants/${id}`)
   logs.value = await api.get(`logs?plant_id=${id}`)
+  chats.value = await api.get(`ai/chats?plant_id=${id}&limit=5`)
   training.value = s.value.phase.day ? await api.get(`plants/${id}/training`) : []
   if (!Object.keys(techNames.value).length) techNames.value = Object.fromEntries((await api.get('training')).map((t) => [t.key, t.name]))
   form.value = { ...s.value.plant, soaked_at: s.value.plant.soaked_at ? s.value.plant.soaked_at.slice(0, 16) : null }
@@ -113,6 +117,24 @@ onMounted(load)
       <strong>{{ c.name }}</strong> – {{ c.scope === 'zelt' ? 'betrifft das ganze Zelt' : 'betrifft diese Pflanze' }}, {{ PEST.status[c.status] }}
     </router-link>
     <router-link :to="{ path: '/schaedlinge', query: { neu: 1, plant: s.plant.id } }" class="small muted">Befall melden</router-link>
+
+    <section class="panel stack ki">
+      <div class="row between">
+        <h3>KI</h3>
+        <div class="row">
+          <router-link class="btn primary" :to="{ path: '/ki/neu', query: { pflanze: s.plant.id } }">Begutachten</router-link>
+          <router-link class="btn ghost" :to="{ path: '/ki/neu', query: { pflanze: s.plant.id, art: 'frage' } }">Frage stellen</router-link>
+        </div>
+      </div>
+      <router-link v-for="c in chats" :key="c.id" :to="`/ki/${c.id}`" class="kirow">
+        <div class="row between">
+          <span class="small"><strong>{{ c.kind === 'check' ? 'Check' : 'Frage' }}</strong> · {{ fmt.dt(c.created_at) }}</span>
+          <span v-if="c.busy" class="chip">läuft</span>
+          <span v-else-if="AMPEL[c.ampel]" class="chip" :class="AMPEL[c.ampel][1]">{{ AMPEL[c.ampel][0] }}</span>
+        </div>
+        <p v-if="c.summary" class="small muted">{{ c.summary }}</p>
+      </router-link>
+    </section>
 
     <details v-if="strain" class="panel">
       <summary><strong>Sorte: {{ strain.name }}</strong> <span class="small muted">– Steckbrief</span></summary>
@@ -235,7 +257,8 @@ onMounted(load)
             <span class="small muted">{{ fmt.dt(l.ts) }}</span>
           </div>
           <div class="row">
-            <router-link :to="`/eintrag/${l.id}`" class="btn ghost mini">Bearbeiten</router-link>
+            <router-link v-if="l.type === 'ai_check' && chatOf(l)" :to="`/ki/${chatOf(l)}`" class="btn ghost mini">Gespräch</router-link>
+            <router-link v-else :to="`/eintrag/${l.id}`" class="btn ghost mini">Bearbeiten</router-link>
             <button class="ghost mini" @click="del(l)">Löschen</button>
           </div>
         </div>
@@ -263,6 +286,8 @@ onMounted(load)
 .day small { display: block; font-size: .8rem; color: var(--muted); font-weight: 500; line-height: 1.4; }
 .mini { min-height: 34px; padding: 4px 10px; font-size: .875rem; }
 .casenote { display: block; text-decoration: none; }
+.ki { border-color: var(--leaf); }
+.kirow { display: block; text-decoration: none; color: inherit; border-left: 3px solid var(--line); padding: 2px 0 4px 12px; }
 .germ { border-color: var(--leaf); }
 .trow { display: block; text-decoration: none; border-left: 3px solid var(--line); padding: 4px 0 6px 12px; }
 .trow.jetzt { border-color: var(--leaf); }

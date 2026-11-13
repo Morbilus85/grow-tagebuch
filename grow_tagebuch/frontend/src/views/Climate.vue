@@ -66,7 +66,10 @@ onUnmounted(() => chart?.destroy())
 
 <template>
   <main class="page stack-lg">
-    <h1>Klima</h1>
+    <div class="row between">
+      <h1>Klima</h1>
+      <router-link v-if="setupId" class="btn ghost" :to="{ path: '/ki/neu', query: { zelt: setupId } }">KI fragen</router-link>
+    </div>
     <div v-if="tents.length > 1" class="row" role="group" aria-label="Zelt">
       <button v-for="s in tents" :key="s.id" :class="{ primary: s.id === setupId }" @click="pickTent(s.id)">{{ s.name }}</button>
     </div>

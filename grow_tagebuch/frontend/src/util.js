@@ -31,6 +31,7 @@ export const LOG_TYPES = {
   treatment: 'Maßnahme',
   note: 'Notiz',
   harvest: 'Ernte',
+  ai_check: 'KI-Check',
 }
 
 export const rating = { ok: 'ok', grenzwertig: 'warn', schlecht: 'bad', zu_hoch: 'bad', zu_niedrig: 'warn', knapp: 'warn', kritisch: 'bad' }

@@ -1,3 +1,15 @@
+## 0.12.0
+
+- KI-Begutachtung: an der Pflanze „Begutachten“ – die neuesten Fotos (max. 4, frei wählbar oder neu aufnehmen) gehen mit
+  Kontext an Claude Opus: Phase, Tagebuch der letzten 21 Tage (Gießen, pH/EC, Höhe, Training), Klima der letzten 7 Tage,
+  Erde, Wasser, Lampe, Schädlingsfälle, Inventar, Fazit und Foto des letzten Checks.
+- Antwort strukturiert: Ampel (unauffällig/beobachten/handeln), Befunde mit Sicherheit und Gegenargument, nächste Schritte,
+  Vergleich zum letzten Check, Foto-Anforderungen (mit Foto-Knopf) und Vorschläge (Aufgabe/Notiz per „Übernehmen“).
+- Danach als Chat weiter: Rückfragen, Fotos anhängen. Fotos landen zusätzlich im Tagebuch.
+- „Frage stellen“ an der Pflanze und „KI fragen“ unter Klima (zeltweit), z. B. wann gießen.
+- Jeder Check erscheint als Eintrag „KI-Check“ im Zeitstrahl, Kosten je Antwort und Gespräch werden angezeigt.
+- Die KI ändert nie selbst etwas; Antworten laufen im Hintergrund (kein Abbruch durch HA-Ingress).
+
 ## 0.11.1
 
 - Fotos im Eintrag: Auswahl wieder einzeln statt Mehrfachauswahl – die HA-App auf Android gab bei Mehrfachauswahl aus der

@@ -18,6 +18,15 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   `{city}` überschreibt Wasserwerte (EC in mS/cm, Versorger-Analyse), `POST /api/soils/{id}/refresh` `{product}` füllt nur
   `info` – Düngeplan-Felder (Wochen, Schema-Typ) ändert nur Kilian per „Übernehmen“. Beide laufen über `_shielded` weiter,
   wenn HA-Ingress trennt (Logs „Wasser-/Erde-Recherche für … gespeichert“). `GET /api/ai/status`.
+- KI-Begutachtung/Fragen (0.12.0) in `ai_chat.py`, Modell `claude-opus-5-5` (Preise in `PRICE`), Modelle `AiChat`/`AiMessage`.
+  Nur auf Knopfdruck, nie automatisch pro Foto (Kilians Wunsch). `kind=check` (Pflanze, Fotos) oder `frage` (Pflanze oder
+  Zelt). Kontext-Snapshot beim Start (`build_context`: Phase, Logs 21 d, Klima 7 d, Erde/Wasser/Lampe, Fälle, Inventar,
+  Fazit + Foto des letzten Checks), danach Chat mit Rückfragen; Verlauf per Prompt-Caching. Jede Antwort Structured
+  Outputs (`SCHEMA`: reply, ampel, findings, next_steps, comparison, photo_requests, suggestions, summary). Antwort läuft
+  im Hintergrund, Frontend pollt `GET /api/ai/chats/{id}` (`busy`). API: `POST /api/ai/chats`, `…/messages`, `…/photos`
+  (Foto landet als Beobachtung im Tagebuch), `…/apply` (Vorschlag → Aufgabe/Notiz), `…/retry`, `DELETE`. Check erzeugt
+  Log-Typ `ai_check` (Text = Ampel + Fazit, Tag `ai_chat:<id>`). Keine Websuche im Chat (Structured Outputs). KI ändert
+  nie selbst etwas. Frontend `/ki/neu?pflanze=…[&art=frage]` bzw. `?zelt=…`, Chat `/ki/:id`.
 - Frontend `grow_tagebuch/frontend`: Vue 3 + Vite, Hash-Router, `dist/` wird committed (HA baut ohne Node).
   „Mehr“ (seit 0.10.0) = nur Kachel-Menü in Gruppen; Unterseiten `/mehr/durchgaenge`, `/mehr/sorten`, `/mehr/aufgaben`,
   `/mehr/erde-wasser` (Erde + Wasser bewusst zusammen), `/mehr/zelte` (Zelte + Sensoren je Zelt),
@@ -29,7 +38,8 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Neue Bereiche als eigene Kachel/Seite anlegen, nicht wieder alles auf eine Seite.
   Datei-Inputs nie mit `multiple`: Die HA-Android-App liefert bei Mehrfachauswahl aus der Galerie eine leere Liste
   (bis 0.11.0 kam so kein einziges Foto an). Einzeln wählen, Vorschau zeigen; Uploads loggen „Foto … gespeichert“.
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 46 grün, Stand 0.11.1).
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 48 grün, Stand 0.12.0). KI-Test heißt `test_zz_ai_chat.py`,
+  damit er nach `test_flow` läuft (gemeinsame Test-DB).
 
 ## Release-Ablauf (immer so)
 
@@ -90,4 +100,5 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Brennnesselpulver, Aloe-Puder, Neem Cake, CalMag).
 - Phase 1b: ntfy-Push erledigt (0.9.0). Topfgewicht-Lernen bewusst erst beim nächsten Durchgang (Kilian 08.11.2026:
   Erde schon feucht, keine Waage; dann Topf mit trockener Erde vor dem ersten Gießen wiegen). Export (CSV) offen.
-- Phase 2 (KI-Klimacheck, freie Frage) – erst sinnvoll, wenn mehr Daten aus Durchgang 3 vorliegen.
+- Phase 2: Foto-Check + freie Frage erledigt (0.12.0). Offen: KI-Düngeempfehlung gegen Regel-Rezept, Erntefenster
+  (Trichome), ggf. Websuche im Chat. Zeltweiter Foto-Check aller Pflanzen bewusst nicht (Kilian 13.11.2026).
