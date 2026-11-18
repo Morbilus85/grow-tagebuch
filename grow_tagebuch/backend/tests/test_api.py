@@ -267,3 +267,15 @@ def test_second_tent_and_custom_product():
         assert c.delete(f"/api/products/{p['id']}").json() == {"ok": True}
         fixed = next(x for x in c.get("/api/products").json() if not x["key"].startswith("custom_"))
         assert c.delete(f"/api/products/{fixed['id']}").status_code == 400
+
+
+def test_leaf_offset():
+    with TestClient(app) as c:
+        s = c.get("/api/setups").json()[0]
+        assert s["leaf_offset"] == 1.0
+        assert c.patch(f"/api/setups/{s['id']}", json={"leaf_offset": 2.25}).json()["leaf_offset"] == 2.2
+        assert c.patch(f"/api/setups/{s['id']}", json={"leaf_offset": 20}).status_code == 400
+        assert c.patch(f"/api/setups/{s['id']}", json={"leaf_offset": "x"}).status_code == 400
+        live = c.get(f"/api/climate/{s['id']}/live").json()
+        assert live["leaf_offset"] == 2.2
+        c.patch(f"/api/setups/{s['id']}", json={"leaf_offset": 1.0})

@@ -7,7 +7,7 @@ const ROLES = { temp: 'Temperatur', rh: 'Luftfeuchte', vpd: 'VPD', light_level: 
   exhaust_level: 'Abluft Stufe', heater_switch: 'Heizung', heatmat_switch: 'Heizmatte', room_temp: 'Raum Temperatur', room_rh: 'Raum Feuchte' }
 const MEDIUM = { erde: 'Erde', rdwc: 'RDWC (Hydro)' }
 const STATUS = { geplant: 'geplant', aktiv: 'in Betrieb', abgebaut: 'abgebaut' }
-const FIELDS = ['name', 'width_cm', 'depth_cm', 'height_cm', 'lamp', 'lamp_hang_cm', 'medium', 'status', 'notes']
+const FIELDS = ['name', 'width_cm', 'depth_cm', 'height_cm', 'lamp', 'lamp_hang_cm', 'medium', 'status', 'notes', 'leaf_offset']
 
 const setups = ref([])
 const runs = ref([])
@@ -91,6 +91,8 @@ onMounted(load)
             <label class="field"><span>Medium</span><select v-model="s.medium"><option v-for="(l, k) in MEDIUM" :key="k" :value="k">{{ l }}</option></select></label>
             <label class="field"><span>Status</span><select v-model="s.status"><option v-for="(l, k) in STATUS" :key="k" :value="k">{{ l }}</option></select></label>
           </div>
+          <label class="field"><span>Blatt kühler als Luft (°C, für Blatt-VPD)</span>
+            <input type="number" inputmode="decimal" step="0.1" min="-5" max="10" v-model.number="s.leaf_offset" /></label>
           <label class="field"><span>Notiz</span><input v-model="s.notes" /></label>
           <p v-if="s.medium === 'rdwc'" class="note info small">RDWC ist vorgemerkt. Reservoir-Protokoll, Zielwerte (pH, EC, Wassertemperatur) und Mineral-Düngeplan kommen, sobald System und Dünger feststehen.</p>
           <div class="row between">

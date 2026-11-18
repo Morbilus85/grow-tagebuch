@@ -27,6 +27,7 @@ class Setup(SQLModel, table=True):
     medium: str = "erde"  # erde | rdwc
     status: str = "aktiv"  # geplant | aktiv | abgebaut
     lamp: str = ""  # z. B. „Spider Farmer SE5000“
+    leaf_offset: Optional[float] = 1.0  # Blatt so viel °C kühler als Luft (negativ = wärmer), für Blatt-VPD
 
 
 class Equipment(SQLModel, table=True):

@@ -38,7 +38,10 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Neue Bereiche als eigene Kachel/Seite anlegen, nicht wieder alles auf eine Seite.
   Datei-Inputs nie mit `multiple`: Die HA-Android-App liefert bei Mehrfachauswahl aus der Galerie eine leere Liste
   (bis 0.11.0 kam so kein einziges Foto an). Einzeln wählen, Vorschau zeigen; Uploads loggen „Foto … gespeichert“.
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 48 grün, Stand 0.12.0). KI-Test heißt `test_zz_ai_chat.py`,
+- Blatt-VPD (0.12.1): `Setup.leaf_offset` (°C Blatt kühler als Luft, Standard 1,0, erlaubt −5…10), `climate.leaf_offset()`
+  liefert ihn für `read_live`, Klima-Alarm, Verlauf (`vpd_leaf`) und KI-Kontext. Sensor-VPD des AC-Infinity-Controllers ist
+  Luft-VPD (Controller-Blattoffset in HA nicht verfügbar). Einstellung unter Klima und im Zelt-Formular.
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 50 grün, Stand 0.12.1). KI-Test heißt `test_zz_ai_chat.py`,
   damit er nach `test_flow` läuft (gemeinsame Test-DB).
 
 ## Release-Ablauf (immer so)

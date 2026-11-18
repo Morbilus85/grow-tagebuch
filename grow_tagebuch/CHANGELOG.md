@@ -1,3 +1,9 @@
+## 0.12.1
+
+- Blatt-VPD je Zelt einstellbar: „Blatt kühler als Luft (°C)“ unter Klima (mit Live-Vorschau) und im Zelt-Formular.
+  Bisher fest 1 °C. Gilt für Anzeige, Zielbereich, Klima-Alarm und KI-Kontext.
+- Klima-Verlauf zeigt Blatt-VPD (durchgezogen) und Luft-VPD vom Sensor (gestrichelt).
+
 ## 0.12.0
 
 - KI-Begutachtung: an der Pflanze „Begutachten“ – die neuesten Fotos (max. 4, frei wählbar oder neu aufnehmen) gehen mit

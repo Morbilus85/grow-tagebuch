@@ -18,6 +18,7 @@ from PIL import Image
 from sqlmodel import Session, select
 
 from . import services
+from .logic import climate
 from .db import PHOTO_DIR
 from .models import (
     AiChat,
@@ -176,7 +177,11 @@ def _climate(session: Session, setup_id: int, days: int = 7) -> str:
         out.append(f"{d:%d.%m.} | {_f(t[0])}/{_f(t[1])}/{_f(t[2])} | {_f(h[0], 0)}/{_f(h[1], 0)}/{_f(h[2], 0)} | "
                    f"{_f(v[1], 2)} | {lamp} | {share('heater_on')}/{share('heatmat_on')}")
     last = rows[-1]
-    out.append(f"Letzter Messwert {last.ts:%d.%m. %H:%M}: {_f(last.temp)} °C, {_f(last.rh, 0)} % rLF, VPD {_f(last.vpd, 2)} kPa")
+    off = climate.leaf_offset(session, setup_id)
+    out.append(f"Letzter Messwert {last.ts:%d.%m. %H:%M}: {_f(last.temp)} °C, {_f(last.rh, 0)} % rLF, VPD {_f(last.vpd, 2)} kPa "
+               f"(Sensor/Luft), Blatt-VPD {_f(climate.vpd_leaf(last.temp, last.rh, off), 2)} kPa")
+    out.append(f"Blatt-VPD rechnet mit Blatttemperatur {_f(off)} °C unter Lufttemperatur (von Kilian je Zelt eingestellt). "
+               "Zielbereiche und Klima-Alarm beziehen sich auf Blatt-VPD.")
     return "\n".join(out)
 
 

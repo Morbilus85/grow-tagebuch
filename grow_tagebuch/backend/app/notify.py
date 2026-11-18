@@ -151,12 +151,13 @@ def lead_phase(session: Session, setup_id: int, today: Optional[date] = None) ->
 PHASE_NAMES = {"seedling": "Sämling", "veg": "Wachstum", "bloom": "Blüte", "flush": "Spülen"}
 
 
-def evaluate(sample: Optional[ClimateSample], phase: Optional[str], strict: bool) -> dict[str, dict]:
+def evaluate(sample: Optional[ClimateSample], phase: Optional[str], strict: bool,
+             offset: float = climate.LEAF_OFFSET) -> dict[str, dict]:
     """Liefert je Messgröße {'bad': bool, 'value', 'target'}; ohne Phase keine Bewertung."""
     if not sample or not phase:
         return {}
     out = {}
-    v = climate.vpd_leaf(sample.temp, sample.rh) or sample.vpd
+    v = climate.vpd_leaf(sample.temp, sample.rh, offset) or sample.vpd
     for key, val, rng in (("temp", sample.temp, climate.TEMP_TARGETS.get(phase)),
                           ("vpd", v, climate.VPD_TARGETS.get(phase))):
         r = climate.rate(val, rng)
@@ -174,7 +175,7 @@ LABEL = {"temp": "Temperatur", "vpd": "VPD (Blatt)"}
 
 
 def climate_messages(setup_id: int, sample: Optional[ClimateSample], phase: Optional[str], cfg: dict,
-                     now: Optional[datetime] = None) -> list[dict]:
+                     now: Optional[datetime] = None, offset: float = climate.LEAF_OFFSET) -> list[dict]:
     """Zustandsautomat; gibt zu sendende Meldungen zurück. Getrennt von send() für Tests."""
     now = now or datetime.now()
     msgs = []
@@ -197,7 +198,7 @@ def climate_messages(setup_id: int, sample: Optional[ClimateSample], phase: Opti
                      "priority": 2, "tags": ["white_check_mark"]})
     off.clear()
 
-    for key, ev in evaluate(sample, phase, bool(cfg["climate_strict"])).items():
+    for key, ev in evaluate(sample, phase, bool(cfg["climate_strict"]), offset).items():
         st = _state.setdefault((setup_id, key), {})
         lo, hi = ev["target"]
         target = f"{_fmt(key, lo)} – {_fmt(key, hi)}"
@@ -223,7 +224,8 @@ async def climate_check(session: Session, setup_id: int, sample: Optional[Climat
     cfg = settings(session)
     if not (ready(cfg) and cfg["climate_enabled"]):
         return 0
-    msgs = climate_messages(setup_id, sample, lead_phase(session, setup_id), cfg)
+    msgs = climate_messages(setup_id, sample, lead_phase(session, setup_id), cfg,
+                            offset=climate.leaf_offset(session, setup_id))
     for m in msgs:
         await send(cfg, **m)
     return len(msgs)

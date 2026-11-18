@@ -639,7 +639,9 @@ def climate_history(setup_id: int, hours: int = 48, session: Session = S):
     since = datetime.now() - timedelta(hours=hours)
     rows = session.exec(select(ClimateSample).where(ClimateSample.setup_id == setup_id, ClimateSample.ts >= since)
                         .order_by(ClimateSample.ts)).all()
-    return [{"ts": r.ts.isoformat(), "temp": r.temp, "rh": r.rh, "vpd": r.vpd, "light": r.light_level,
+    off = climate.leaf_offset(session, setup_id)
+    return [{"ts": r.ts.isoformat(), "temp": r.temp, "rh": r.rh, "vpd": r.vpd,
+             "vpd_leaf": climate.vpd_leaf(r.temp, r.rh, off), "light": r.light_level,
              "heater": r.heater_on, "heatmat": r.heatmat_on} for r in rows]
 
 
@@ -688,13 +690,14 @@ def setups(session: Session = S):
     return out
 
 
-SETUP_FIELDS = ("name", "kind", "indoor", "width_cm", "depth_cm", "height_cm", "lamp_hang_cm", "notes", "medium", "status", "lamp")
+SETUP_FIELDS = ("name", "kind", "indoor", "width_cm", "depth_cm", "height_cm", "lamp_hang_cm", "notes", "medium", "status", "lamp", "leaf_offset")
 
 
 @api.post("/setups")
 def create_setup(data: dict, session: Session = S):
     if not (data.get("name") or "").strip():
         raise HTTPException(400, "Name fehlt")
+    _check_leaf_offset(data)
     s = _apply(Setup(name=data["name"].strip()), {k: v for k, v in data.items() if k in SETUP_FIELDS})
     session.add(s)
     session.commit()
@@ -702,8 +705,22 @@ def create_setup(data: dict, session: Session = S):
     return {**s.model_dump(), "equipment": [], "sensors": []}
 
 
+def _check_leaf_offset(data: dict) -> None:
+    if data.get("leaf_offset") is None:
+        return
+    try:
+        v = float(data["leaf_offset"])
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Blatt-Differenz muss eine Zahl sein")
+    lo, hi = climate.LEAF_OFFSET_RANGE
+    if not lo <= v <= hi:
+        raise HTTPException(400, f"Blatt-Differenz außerhalb {lo:g} bis {hi:g} °C")
+    data["leaf_offset"] = round(v, 1)
+
+
 @api.patch("/setups/{sid}")
 def update_setup(sid: int, data: dict, session: Session = S):
+    _check_leaf_offset(data)
     s = _apply(_get(session, Setup, sid), data)
     session.add(s)
     session.commit()

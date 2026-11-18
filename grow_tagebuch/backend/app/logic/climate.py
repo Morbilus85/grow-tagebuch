@@ -8,7 +8,7 @@ from typing import Optional
 from sqlmodel import Session, select
 
 from .. import ha
-from ..models import ClimateSample, SensorMapping
+from ..models import ClimateSample, SensorMapping, Setup
 
 VPD_TARGETS = {
     "seedling": (0.4, 0.8),
@@ -22,7 +22,8 @@ TEMP_TARGETS = {
     "bloom": (20, 27),
     "flush": (18, 26),
 }
-LEAF_OFFSET = 1.0  # Blatt ca. 1 °C kühler als Luft unter LED (Richtwert)
+LEAF_OFFSET = 1.0  # Standard: Blatt ca. 1 °C kühler als Luft unter LED (je Zelt einstellbar)
+LEAF_OFFSET_RANGE = (-5.0, 10.0)
 RAW_KEEP_DAYS = 14
 
 
@@ -40,6 +41,11 @@ def vpd_leaf(t: Optional[float], rh: Optional[float], offset: float = LEAF_OFFSE
     if t is None or rh is None:
         return None
     return round(svp(t - offset) - svp(t) * rh / 100, 2)
+
+
+def leaf_offset(session: Session, setup_id: Optional[int]) -> float:
+    s = session.get(Setup, setup_id) if setup_id else None
+    return LEAF_OFFSET if s is None or s.leaf_offset is None else float(s.leaf_offset)
 
 
 def rate(value: Optional[float], rng: Optional[tuple]) -> str:
@@ -63,12 +69,16 @@ async def read_live(session: Session, setup_id: int) -> dict:
     states = await ha.get_states(list(m.values()))
     g = lambda role: states.get(m.get(role, ""))  # noqa: E731
     t, rh = ha.num(g("temp")), ha.num(g("rh"))
+    off = leaf_offset(session, setup_id)
     return {
         "available": ha.available() and bool(states),
         "temp": t,
         "rh": rh,
         "vpd": ha.num(g("vpd")) or vpd_air(t, rh),
-        "vpd_leaf": vpd_leaf(t, rh),
+        "vpd_air": vpd_air(t, rh),
+        "vpd_leaf": vpd_leaf(t, rh, off),
+        "leaf_offset": off,
+        "leaf_temp": round(t - off, 1) if t is not None else None,
         "light_level": ha.num(g("light_level")),
         "light_on": ha.on(g("light_on")),
         "exhaust_level": ha.num(g("exhaust_level")),

@@ -296,3 +296,12 @@ def test_pest_treatment_phases():
     assert pests.evaluate(kali, "bloom", 2)["allowed"] and not pests.evaluate(kali, "bloom", 3)["allowed"]
     nem = pests.PEST["trauermuecken"]["treatments"][0]
     assert pests.evaluate(nem, "keimung", None)["allowed"]
+
+
+def test_vpd_leaf_offset():
+    from app.logic import climate
+    t, rh = 25.6, 72.9
+    assert climate.vpd_air(t, rh) == 0.89
+    assert climate.vpd_leaf(t, rh, 0) == climate.vpd_air(t, rh)
+    assert climate.vpd_leaf(t, rh, 2) < climate.vpd_leaf(t, rh, 1) < climate.vpd_leaf(t, rh, 0)
+    assert climate.vpd_leaf(t, rh, -1) > climate.vpd_air(t, rh)
