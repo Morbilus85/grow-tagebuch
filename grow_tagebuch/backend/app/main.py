@@ -10,10 +10,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
-from . import __version__, notify
+from . import __version__, notify, services
 from .db import DATA_DIR, engine, init_db
 from .logic import climate
-from .models import SensorMapping
+from .models import Run, SensorMapping
 from .routes import api
 from .seed import seed, sync_training
 
@@ -40,6 +40,12 @@ async def sample_job():
             except Exception as e:  # Sensorfehler dürfen die App nicht stoppen
                 log.warning("Klima-Aufzeichnung Setup %s fehlgeschlagen: %s", sid, e)
                 smp = None
+            if smp is not None and smp.light_level:
+                for run in s.exec(select(Run).where(Run.setup_id == sid, Run.status == "aktiv")).all():
+                    try:
+                        services.sync_light_level(s, run, smp.light_level)
+                    except Exception as e:
+                        log.warning("Lichtstufe Durchgang %s nicht übernommen: %s", run.id, e)
             try:
                 await notify.climate_check(s, sid, smp)
             except Exception as e:

@@ -43,6 +43,23 @@ def light_model(session: Session, setup_id: int) -> light.LightModel:
     return light.LightModel(pts)
 
 
+def sync_light_level(session: Session, run: Run, live_level) -> bool:
+    """Stufe vom Controller in den Durchgang übernehmen (App schaltet nie, sie zieht nur nach)."""
+    if not live_level or live_level <= 0:
+        return False
+    lvl = int(round(live_level))
+    if lvl == run.light_level:
+        return False
+    old = run.light_level
+    run.light_level = lvl
+    session.add(run)
+    session.add(LogEntry(run_id=run.id, type="note", tags=["licht", "controller"],
+                         text=f"Lichtstufe laut Controller: {old if old is not None else '–'} → {lvl}"))
+    session.commit()
+    session.refresh(run)
+    return True
+
+
 def heights(session: Session, plant_id: int) -> list[tuple[date, float]]:
     rows = session.exec(select(LogEntry).where(LogEntry.plant_id == plant_id, LogEntry.height_cm != None)  # noqa: E711
                         .order_by(LogEntry.ts)).all()

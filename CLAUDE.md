@@ -41,7 +41,10 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 - Blatt-VPD (0.12.1): `Setup.leaf_offset` (°C Blatt kühler als Luft, Standard 1,0, erlaubt −5…10), `climate.leaf_offset()`
   liefert ihn für `read_live`, Klima-Alarm, Verlauf (`vpd_leaf`) und KI-Kontext. Sensor-VPD des AC-Infinity-Controllers ist
   Luft-VPD (Controller-Blattoffset in HA nicht verfügbar). Einstellung unter Klima und im Zelt-Formular.
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 50 grün, Stand 0.12.1). KI-Test heißt `test_zz_ai_chat.py`,
+- Lichtstufe (0.12.2): Controller-Stufe (`light_level`-Sensor, > 0) hat Vorrang; `services.sync_light_level` zieht
+  `Run.light_level` nach (in `/api/today` und im Klima-Job) und schreibt Notiz „Lichtstufe laut Controller: alt → neu“.
+  Im Licht-Formular ist „Stufe“ dann gesperrt, Speichern schickt keine Stufe mit.
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 51 grün, Stand 0.12.2). KI-Test heißt `test_zz_ai_chat.py`,
   damit er nach `test_flow` läuft (gemeinsame Test-DB).
 
 ## Release-Ablauf (immer so)
@@ -75,13 +78,13 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 ## Setup (Stand 01.11.2026)
 
 - Zelt ca. 80×80×180, AC-Infinity-Controller, Lampe Ionframe EVO4 (Stufen 1–10, Port 2), Lichtplan 20/4 für Autos,
-  Lichtkalibrierung in `docs/messungen/licht_ionframe_evo4.csv`. Stufe 3, 60 cm.
+  Lichtkalibrierung in `docs/messungen/licht_ionframe_evo4.csv`. Stufe 4 (seit 18.11.), 60 cm.
 - 20-l-Stofftöpfe, Floragard Grow Mix Organic + 10–20 % BioBizz Wurmhumus, Pflanzloch mit Light-Mix. Leitungswasser Essen
   (EC 0,47, pH 7,9). Nur organisch, BioBizz + eigene Zusätze. Haushalt 3 Erwachsene → KCanG-Limit 9 Pflanzen.
 
 ## Aktueller Stand der Daten
 
-- Durchgang 3 „White Truffle Auto + Blueberry Auto – Herbst 2026“ (ID 3, aktiv, Lampe Stufe 3 / 60 cm, 20/4 ab 06:00):
+- Durchgang 3 „White Truffle Auto + Blueberry Auto – Herbst 2026“ (ID 3, aktiv, Lampe Stufe 4 / 60 cm, 20/4 ab 06:00):
   - Pflanze 1 (ID 7): White Truffle Auto (Strain-ID 2), eingeweicht 31.10. 23:10, gesetzt 01.11., aufgelaufen 03.11.2026.
   - Pflanze 2 (ID 8) „Keimt nicht“ und Pflanze 3 (ID 9) „Keimling eingegangen“: am 07.11.2026 abgebrochen.
   - Pflanze 4 + 5 (ID 10/11): Blueberry Automatic (Zamnesia, Strain-ID 3), Nachzügler, 3 Blueberry-Samen Reserve, H2O2 eingeweicht

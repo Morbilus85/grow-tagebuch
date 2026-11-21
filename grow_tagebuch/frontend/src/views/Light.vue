@@ -13,6 +13,7 @@ const router = useRouter()
 const runId = ref(Number(route.query.run) || null)
 const run = computed(() => t.value?.runs.find((r) => r.run.id === runId.value) || t.value?.runs[0])
 function pickRun(id) { runId.value = id; router.replace({ path: '/licht', query: { run: id } }); load() }
+const fromController = computed(() => run.value?.light.level_source === 'controller')
 const PH = { seedling: 'Sämling', veg: 'Wachstum', bloom: 'Blüte' }
 
 async function load() {
@@ -23,9 +24,11 @@ async function load() {
   info.value = await api.get(`light/${r.run.setup_id}?hours=${r.run.light_hours}`)
 }
 async function save() {
-  await api.patch(`runs/${run.value.run.id}`, form.value)
+  const data = { ...form.value }
+  if (fromController.value) delete data.light_level
+  await api.patch(`runs/${run.value.run.id}`, data)
   await api.post('logs', { run_id: run.value.run.id, type: 'note', tags: ['licht'],
-    text: `Licht: ${form.value.light_hours} h, Stufe ${form.value.light_level}, Abstand ${form.value.lamp_distance_cm} cm` })
+    text: `Licht: ${form.value.light_hours} h, Stufe ${fromController.value ? run.value.light.level : form.value.light_level}, Abstand ${form.value.lamp_distance_cm} cm` })
   say('Lichteinstellung gespeichert')
   load()
 }
@@ -60,7 +63,7 @@ onMounted(load)
       </div>
       <div class="grid3">
         <label class="field"><span>Licht (h/Tag)</span><input type="number" min="0" max="24" step="1" v-model.number="form.light_hours" /></label>
-        <label class="field"><span>Stufe (1–10)</span><input type="number" min="1" max="10" step="1" v-model.number="form.light_level" /></label>
+        <label class="field"><span>{{ fromController ? 'Stufe (Contr.)' : 'Stufe (1–10)' }}</span><input type="number" min="1" max="10" step="1" v-model.number="form.light_level" :readonly="fromController" :class="{ ro: fromController }" /></label>
         <label class="field"><span>Abstand (cm)</span><input type="number" min="10" max="120" step="5" v-model.number="form.lamp_distance_cm" /></label>
       </div>
       <div class="grid3 result">
@@ -68,6 +71,7 @@ onMounted(load)
         <div><p class="small muted">Rand</p><p class="num big">{{ fmt.n(run.light.ppfd_edge, 0) }}</p><p class="small muted">µmol/m²/s</p></div>
         <div><p class="small muted">DLI</p><p class="num big">{{ fmt.n(run.light.dli) }}</p><p class="small muted">max. {{ run.light.target?.dli_max }}</p></div>
       </div>
+      <p v-if="fromController" class="small muted">Stufe kommt live vom AC-Infinity-Controller und wird automatisch übernommen. Ändern am Controller – die App schaltet nicht.</p>
       <p v-for="m in run.light.messages" :key="m" class="note warn">{{ m }}</p>
       <button class="primary" @click="save">Speichern</button>
     </section>
@@ -125,6 +129,7 @@ onMounted(load)
 <style scoped>
 .big { font-size: 1.8rem; font-weight: 600; line-height: 1.1; }
 .led { color: var(--led); }
+.ro { background: var(--sunken); color: var(--muted); }
 .result > div { background: var(--sunken); border-radius: 10px; padding: 10px; }
 .recs { padding-left: 18px; margin: 8px 0 0; }
 .scroll { overflow-x: auto; }

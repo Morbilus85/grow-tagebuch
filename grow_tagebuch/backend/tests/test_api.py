@@ -279,3 +279,27 @@ def test_leaf_offset():
         live = c.get(f"/api/climate/{s['id']}/live").json()
         assert live["leaf_offset"] == 2.2
         c.patch(f"/api/setups/{s['id']}", json={"leaf_offset": 1.0})
+
+
+def test_light_level_from_controller(monkeypatch):
+    from app.logic import climate
+    real = climate.read_live
+
+    async def fake(session, setup_id):
+        live = await real(session, setup_id)
+        live["light_level"] = 4.0
+        return live
+    monkeypatch.setattr(climate, "read_live", fake)
+
+    def n_sync(c, rid):
+        return sum("laut Controller: 3 → 4" in l["text"] for l in c.get(f"/api/logs?run_id={rid}").json())
+    with TestClient(app) as c:
+        run = c.get("/api/today").json()["runs"][0]["run"]
+        c.patch(f"/api/runs/{run['id']}", json={"light_level": 3})
+        before = n_sync(c, run["id"])
+        r = next(x for x in c.get("/api/today").json()["runs"] if x["run"]["id"] == run["id"])
+        assert r["light"]["level"] == 4 and r["light"]["level_source"] == "controller"
+        assert r["run"]["light_level"] == 4
+        assert n_sync(c, run["id"]) == before + 1
+        c.get("/api/today")  # unverändert → kein weiterer Eintrag
+        assert n_sync(c, run["id"]) == before + 1

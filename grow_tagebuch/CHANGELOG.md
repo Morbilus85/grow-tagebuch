@@ -1,3 +1,10 @@
+## 0.12.2
+
+- Licht: Die Stufe kommt jetzt sichtbar vom AC-Infinity-Controller. Das Feld „Stufe“ ist dann gesperrt und zeigt den
+  Controller-Wert; bisher rechnete die App schon damit, im Feld stand aber noch die alte Stufe.
+- Weicht die gespeicherte Stufe vom Controller ab, wird sie automatisch übernommen (beim Öffnen und alle 10 min) und als
+  Notiz „Lichtstufe laut Controller: alt → neu“ im Tagebuch vermerkt. Die App schaltet weiterhin nichts.
+
 ## 0.12.1
 
 - Blatt-VPD je Zelt einstellbar: „Blatt kühler als Luft (°C)“ unter Klima (mit Live-Vorschau) und im Zelt-Formular.
