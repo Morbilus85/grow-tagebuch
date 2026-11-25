@@ -5,16 +5,16 @@ import { Chart, LineController, LineElement, PointElement, LinearScale, Category
 import { api } from '../api.js'
 import { fmt, say } from '../util.js'
 import ClimateStrip from '../components/ClimateStrip.vue'
+import TentTabs from '../components/TentTabs.vue'
+import { loadTents, setTent, tent } from '../tent.js'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler)
 
 const runs = ref([])
 const setups = ref([])
-const setupId = ref(null)
+const setupId = computed(() => tent.id)
 const route = useRoute()
 const router = useRouter()
-// Zelte zum Umschalten: mit aktivem Durchgang oder verknüpften Sensoren
-const tents = computed(() => setups.value.filter((s) => s.sensors.length || runs.value.some((r) => r.run.setup_id === s.id)))
 const shown = computed(() => runs.value.filter((r) => r.run.setup_id === setupId.value))
 const setup = computed(() => setups.value.find((s) => s.id === setupId.value))
 const live = ref(null)
@@ -35,10 +35,11 @@ let chart
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
 
 async function load() {
-  const [t, se] = await Promise.all([api.get('today'), api.get('setups')])
+  if (route.query.zelt) { setTent(Number(route.query.zelt)); router.replace({ path: '/klima' }) }
+  const [t, se] = await Promise.all([api.get('today'), api.get('setups'), loadTents()])
   runs.value = t.runs
   setups.value = se
-  setupId.value = setupId.value || Number(route.query.zelt) || t.runs[0]?.run.setup_id || se[0]?.id
+  if (!setupId.value) return
   offset.value = setup.value?.leaf_offset ?? 1
   ;[rows.value, live.value] = await Promise.all([api.get(`climate/${setupId.value}?hours=${hours.value}`),
     api.get(`climate/${setupId.value}/live`).catch(() => null)])
@@ -79,29 +80,32 @@ async function saveOffset() {
   } catch (e) { say(e.message) }
 }
 function setRange(h) { hours.value = h; load() }
-function pickTent(id) { setupId.value = id; router.replace({ path: '/klima', query: { zelt: id } }); load() }
+const pct = computed(() => setup.value?.light_unit === 'prozent')
+const hasHeat = (c) => c.heater_on !== null || c.heatmat_on !== null
+const hasRoom = (c) => c.room_temp !== null || c.room_rh !== null
 onMounted(load)
 onUnmounted(() => chart?.destroy())
 </script>
 
 <template>
   <main class="page stack-lg">
+    <TentTabs @change="load" />
     <div class="row between">
       <h1>Klima</h1>
       <router-link v-if="setupId" class="btn ghost" :to="{ path: '/ki/neu', query: { zelt: setupId } }">KI fragen</router-link>
-    </div>
-    <div v-if="tents.length > 1" class="row" role="group" aria-label="Zelt">
-      <button v-for="s in tents" :key="s.id" :class="{ primary: s.id === setupId }" @click="pickTent(s.id)">{{ s.name }}</button>
     </div>
     <p v-if="!shown.length" class="small muted">Kein aktiver Durchgang in diesem Zelt – Zielbereiche erst mit Pflanzen.</p>
     <template v-for="r in shown" :key="r.run.id">
       <p v-if="shown.length > 1" class="small muted">{{ r.run.name }}</p>
       <ClimateStrip :climate="r.climate" :light="r.light" :setup-id="r.run.setup_id" :run-id="r.run.id" />
       <div class="panel grid3 small">
-        <div><p class="muted">Raum</p><p class="num">{{ fmt.n(r.climate.room_temp) }} °C, {{ fmt.n(r.climate.room_rh, 0) }} %</p></div>
-        <div><p class="muted">Heizung / Heizmatte</p>
+        <div v-if="hasRoom(r.climate)"><p class="muted">Raum</p><p class="num">{{ fmt.n(r.climate.room_temp) }} °C, {{ fmt.n(r.climate.room_rh, 0) }} %</p></div>
+        <div v-if="hasHeat(r.climate)"><p class="muted">Heizung / Heizmatte</p>
           <p>{{ r.climate.heater_on === null ? '–' : r.climate.heater_on ? 'an' : 'aus' }} / {{ r.climate.heatmat_on === null ? '–' : r.climate.heatmat_on ? 'an' : 'aus' }}</p></div>
-        <div><p class="muted">Abluft / Lampe</p><p class="num">Stufe {{ fmt.n(r.climate.exhaust_level, 0) }} / {{ fmt.n(r.climate.light_level, 0) }}</p></div>
+        <div v-if="r.climate.water_temp !== null"><p class="muted">Wasser (Reservoir)</p><p class="num">{{ fmt.n(r.climate.water_temp) }} °C</p></div>
+        <div><p class="muted">Abluft / Lampe</p>
+          <p class="num" v-if="pct">{{ fmt.n(r.climate.exhaust_level, 0) }} % / {{ r.climate.light_on === false ? 'aus' : fmt.n(r.climate.light_level, 0) + ' %' }}</p>
+          <p class="num" v-else>Stufe {{ fmt.n(r.climate.exhaust_level, 0) }} / {{ fmt.n(r.climate.light_level, 0) }}</p></div>
       </div>
     </template>
 

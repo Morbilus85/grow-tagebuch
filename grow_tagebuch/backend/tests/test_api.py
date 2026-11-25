@@ -303,3 +303,31 @@ def test_light_level_from_controller(monkeypatch):
         assert n_sync(c, run["id"]) == before + 1
         c.get("/api/today")  # unverändert → kein weiterer Eintrag
         assert n_sync(c, run["id"]) == before + 1
+
+
+def test_second_tent_rdwc():
+    with TestClient(app) as c:
+        prods = {p["key"]: p for p in c.get("/api/products").json()}
+        assert prods["canna_aqua_vega_a"]["in_stock"] and not prods["canna_pk_13_14"]["in_stock"]
+        s = c.post("/api/setups", json={"name": "Zelt 2", "medium": "rdwc", "light_unit": "prozent",
+                                        "width_cm": 100, "depth_cm": 100, "height_cm": 200}).json()
+        assert c.post("/api/setups", json={"name": "x", "light_unit": "watt"}).status_code == 400
+        e = c.post(f"/api/setups/{s['id']}/equipment", json={"category": "licht", "brand": "Spider Farmer",
+                                                             "model": "SE5000", "specs": {"watt": 480}}).json()
+        assert c.patch(f"/api/equipment/{e['id']}", json={"notes": "0–10 V"}).json()["notes"] == "0–10 V"
+        for d, lv, v in ((45, 25, 301.1), (45, 100, 1125.2), (60, 25, 273.7), (60, 100, 1021.0)):
+            c.post(f"/api/light/{s['id']}/calibration", json={"distance_cm": d, "level": lv, "ppfd": v})
+        info = c.get(f"/api/light/{s['id']}?hours=18").json()
+        assert info["unit"] == "prozent" and info["levels"][-1] == 100 and info["table"][3]["100"] > 1000
+        run = c.post("/api/runs", json={"setup_id": s["id"], "light_hours": 18, "light_on_time": "16:00"}).json()
+        st = c.get(f"/api/reservoir/{run['id']}").json()
+        assert st["stage_suggestion"] == "start" and st["status"]["last_change"] is None
+        rec = c.post("/api/reservoir/recipe", json={"stage": "veg1", "liters": 30, "water_ec": 0.44}).json()
+        assert rec["items"][0]["total_ml"] == 75
+        c.post("/api/logs", json={"run_id": run["id"], "type": "reservoir", "reservoir_action": "wechsel", "volume_l": 30,
+                                  "ec_in": 1.5, "ph_in": 6.0, "water_temp": 19.5, "products": rec["items"]})
+        st = c.get(f"/api/reservoir/{run['id']}").json()
+        assert st["status"]["days_since_change"] == 0 and st["status"]["last"]["water_temp"] == 19.5
+        t = next(r for r in c.get("/api/today").json()["runs"] if r["run"]["id"] == run["id"])
+        assert t["reservoir"]["volume_l"] == 30 and t["light"]["unit"] == "prozent"
+        c.patch(f"/api/runs/{run['id']}", json={"status": "abgeschlossen"})

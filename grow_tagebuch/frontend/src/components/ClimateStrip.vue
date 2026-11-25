@@ -25,7 +25,7 @@ const cls = (r) => rating[r] || ''
     <router-link :to="lq()" class="cell">
       <span class="small muted">Licht</span>
       <span class="num big led" :class="{ off: light?.lamp_on === false }">{{ light?.lamp_on === false ? 'aus' : fmt.n(light?.ppfd, 0) }}<small v-if="light?.lamp_on !== false">µmol</small></span>
-      <span class="small muted" v-if="light?.level">berechnet: Stufe {{ light.level }}, {{ light.distance_cm }} cm</span>
+      <span class="small muted" v-if="light?.level && light?.lamp_on !== false">berechnet: {{ light.unit === 'prozent' ? `${light.level} %` : `Stufe ${light.level}` }}, {{ light.distance_cm ?? '?' }} cm</span>
       <span class="chip" :class="cls(light?.status)" v-if="light?.dli && light?.lamp_on !== false">DLI {{ fmt.n(light.dli) }}</span>
     </router-link>
   </div>

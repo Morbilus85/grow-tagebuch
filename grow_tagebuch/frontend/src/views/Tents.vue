@@ -3,11 +3,29 @@ import { onMounted, ref } from 'vue'
 import { api } from '../api.js'
 import { say } from '../util.js'
 
-const ROLES = { temp: 'Temperatur', rh: 'Luftfeuchte', vpd: 'VPD', light_level: 'Lampe Stufe', light_on: 'Lampe an/aus',
-  exhaust_level: 'Abluft Stufe', heater_switch: 'Heizung', heatmat_switch: 'Heizmatte', room_temp: 'Raum Temperatur', room_rh: 'Raum Feuchte' }
+const ROLES = { temp: 'Temperatur', rh: 'Luftfeuchte', vpd: 'VPD', light_level: 'Lampe Stufe bzw. Dimmung (light.*)', light_on: 'Lampe an/aus',
+  exhaust_level: 'Abluft Stufe bzw. % (fan.*)', water_temp: 'Wassertemperatur (RDWC)', heater_switch: 'Heizung', heatmat_switch: 'Heizmatte', room_temp: 'Raum Temperatur', room_rh: 'Raum Feuchte' }
 const MEDIUM = { erde: 'Erde', rdwc: 'RDWC (Hydro)' }
 const STATUS = { geplant: 'geplant', aktiv: 'in Betrieb', abgebaut: 'abgebaut' }
-const FIELDS = ['name', 'width_cm', 'depth_cm', 'height_cm', 'lamp', 'lamp_hang_cm', 'medium', 'status', 'notes', 'leaf_offset']
+const FIELDS = ['name', 'width_cm', 'depth_cm', 'height_cm', 'lamp', 'lamp_hang_cm', 'medium', 'status', 'notes', 'leaf_offset', 'light_unit']
+const UNIT = { stufe: 'Stufen 1–10 (AC Infinity)', prozent: 'Dimmung in % (z. B. 0–10 V)' }
+const CAT = { zelt: 'Zelt', licht: 'Lampe', abluft: 'Abluft', filter: 'Filter', umluft: 'Umluft', controller: 'Steuerung',
+  hydro: 'RDWC/Hydro', heizmatte: 'Heizmatte', heizung: 'Heizung', topf: 'Töpfe', messgeraet: 'Messgerät', sonstiges: 'Sonstiges' }
+const newEq = ref({})
+async function addEq(s) {
+  const e = newEq.value[s.id]
+  if (!e?.model) return
+  await api.post(`setups/${s.id}/equipment`, e)
+  newEq.value[s.id] = { category: 'sonstiges', brand: '', model: '' }
+  say('Ausstattung ergänzt')
+  load()
+}
+async function delEq(e) {
+  if (!confirm(`„${e.brand} ${e.model}“ entfernen?`)) return
+  await api.del(`equipment/${e.id}`)
+  load()
+}
+const specText = (sp) => Object.entries(sp || {}).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(' · ')
 
 const setups = ref([])
 const runs = ref([])
@@ -17,6 +35,7 @@ const newTent = ref(null)
 
 async function load() {
   const [se, r] = await Promise.all([api.get('setups'), api.get('runs')])
+  for (const s of se) newEq.value[s.id] ||= { category: 'sonstiges', brand: '', model: '' }
   for (const s of se) sensorEdit.value[s.id] = Object.fromEntries(Object.keys(ROLES).map((k) => [k, s.sensors.find((x) => x.role === k)?.entity_id || '']))
   ;[setups.value, runs.value] = [se, r]
 }
@@ -91,14 +110,31 @@ onMounted(load)
             <label class="field"><span>Medium</span><select v-model="s.medium"><option v-for="(l, k) in MEDIUM" :key="k" :value="k">{{ l }}</option></select></label>
             <label class="field"><span>Status</span><select v-model="s.status"><option v-for="(l, k) in STATUS" :key="k" :value="k">{{ l }}</option></select></label>
           </div>
+          <label class="field"><span>Lampe wird gesteuert über</span>
+            <select v-model="s.light_unit"><option v-for="(l, k) in UNIT" :key="k" :value="k">{{ l }}</option></select></label>
           <label class="field"><span>Blatt kühler als Luft (°C, für Blatt-VPD)</span>
             <input type="number" inputmode="decimal" step="0.1" min="-5" max="10" v-model.number="s.leaf_offset" /></label>
           <label class="field"><span>Notiz</span><input v-model="s.notes" /></label>
-          <p v-if="s.medium === 'rdwc'" class="note info small">RDWC ist vorgemerkt. Reservoir-Protokoll, Zielwerte (pH, EC, Wassertemperatur) und Mineral-Düngeplan kommen, sobald System und Dünger feststehen.</p>
+          <p v-if="s.medium === 'rdwc'" class="note info small">RDWC: Unter „Gießen“ erscheint für dieses Zelt das Reservoir mit CANNA-Aqua-Rechner, Wechsel und Messwerten.</p>
           <div class="row between">
             <button class="ghost" @click="remove(s)">Löschen</button>
             <button class="primary" @click="save(s)">Speichern</button>
           </div>
+
+          <h3>Ausstattung</h3>
+          <ul class="eq">
+            <li v-for="e in s.equipment" :key="e.id" class="row between">
+              <span><span class="small muted">{{ CAT[e.category] || e.category }}</span><br />{{ e.brand }} {{ e.model }}
+                <span v-if="specText(e.specs) || e.notes" class="small muted"><br />{{ [specText(e.specs), e.notes].filter(Boolean).join(' · ') }}</span></span>
+              <button class="ghost small" @click="delEq(e)" aria-label="Entfernen">✕</button>
+            </li>
+          </ul>
+          <div class="grid3">
+            <select v-model="newEq[s.id].category" aria-label="Kategorie"><option v-for="(l, k) in CAT" :key="k" :value="k">{{ l }}</option></select>
+            <input v-model="newEq[s.id].brand" placeholder="Marke" />
+            <input v-model="newEq[s.id].model" placeholder="Modell" />
+          </div>
+          <button @click="addEq(s)" :disabled="!newEq[s.id].model">Ausstattung hinzufügen</button>
 
           <h3>Sensoren aus Home Assistant</h3>
           <p class="small muted">Die App liest nur, sie schaltet nichts. Leer lassen, solange das Zelt nicht steht.</p>
@@ -115,4 +151,6 @@ onMounted(load)
 .title { border: 0; padding: 0; min-height: 0; text-align: left; width: 100%; align-items: center; }
 .edit { border-top: 1px solid var(--line); padding-top: 12px; }
 h3 { margin: 8px 0 0; }
+.eq { list-style: none; margin: 0; padding: 0; }
+.eq li { padding: 8px 0; border-bottom: 1px solid var(--line); gap: 8px; }
 </style>

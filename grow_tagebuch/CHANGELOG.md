@@ -1,3 +1,16 @@
+## 0.13.0
+
+- Zelte als Karteikarten: Oben auf Heute, Gießen, Klima und Licht wählst du das Zelt (z. B. Growzelt | Zelt 2).
+  Jede Seite zeigt nur dieses Zelt; die Wahl bleibt gespeichert. Erscheint ab zwei Zelten in Betrieb.
+- RDWC-Reservoir: Für RDWC-Zelte wird „Gießen“ zum Reservoir – Zustand (letzter Wechsel, EC, pH, Wassertemperatur,
+  Wechsel fällig nach 7 Tagen), Ansatzrechner nach CANNA-Aqua-Schema (Phase, Liter, Wasser-EC → ml je Produkt in
+  Einrühr-Reihenfolge, Ziel-EC) und Einträge (Komplettwechsel, Nachfüllen, Messung) mit Verlauf. Heute zeigt eine Reservoir-Karte.
+- CANNA Aqua Vega A/B, Aqua Flores A/B, Rhizotonic, Cannazym, Cannaboost im Inventar (PK 13/14 als nicht vorhanden).
+- Licht in Prozent: Zelt-Einstellung „Lampe wird gesteuert über“ Stufen 1–10 oder Dimmung %. Kalibrierung, Tabelle,
+  Empfehlungen und Anzeige rechnen dann in %. HA-Lampen (light.*) liefern Helligkeit in %, Lüfter (fan.*) Drehzahl in %.
+- Zelte: Ausstattung je Zelt anlegen/löschen, Sensor-Rolle Wassertemperatur (RDWC).
+- Ohne Pflanzen im Durchgang keine Licht-Zielwarnungen mehr. KI-Kontext kennt RDWC-Reservoir und Dimmung.
+
 ## 0.12.2
 
 - Licht: Die Stufe kommt jetzt sichtbar vom AC-Infinity-Controller. Das Feld „Stufe“ ist dann gesperrt und zeigt den

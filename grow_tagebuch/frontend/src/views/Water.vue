@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api.js'
 import { fmt, say } from '../util.js'
+import TentTabs from '../components/TentTabs.vue'
+import Reservoir from '../components/Reservoir.vue'
+import { current, loadTents, setTent, tent } from '../tent.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,14 +20,24 @@ const meas = ref({})
 const busy = ref(false)
 
 const run = computed(() => runs.value.find((r) => r.run.id === runId.value))
+const multi = computed(() => tent.list.length > 1)
+const tentRuns = computed(() => multi.value ? runs.value.filter((r) => r.run.setup_id === tent.id) : runs.value)
+const rdwc = computed(() => run.value?.setup?.medium === 'rdwc')
 const extraOptions = computed(() => products.value.filter((p) => p.in_stock && !['base', 'ph'].includes(p.kind)
   && !['biobizz_worm_humus', 'neem_cake'].includes(p.key)))
 
 async function load() {
-  const t = await api.get('today')
+  const [t] = await Promise.all([api.get('today'), loadTents()])
   runs.value = t.runs
-  runId.value = Number(route.query.run) || t.runs[0]?.run.id
+  const q = t.runs.find((r) => r.run.id === Number(route.query.run))
+  if (q) setTent(q.run.setup_id)
+  runId.value = q?.run.id || tentRuns.value[0]?.run.id || null
   products.value = await api.get('products')
+  pick()
+}
+function changeTent() {
+  router.replace({ path: '/giessen' })
+  runId.value = tentRuns.value[0]?.run.id || null
   pick()
 }
 function pick() {
@@ -62,13 +75,20 @@ onMounted(load)
 
 <template>
   <main class="page stack-lg">
-    <h1>Gießen</h1>
+    <TentTabs @change="changeTent" />
+    <h1>{{ rdwc ? 'Reservoir' : 'Gießen' }}</h1>
 
-    <div v-if="runs.length > 1">
+    <div v-if="tentRuns.length > 1">
       <label class="field"><span>Durchgang</span>
-        <select v-model.number="runId" @change="pick"><option v-for="r in runs" :key="r.run.id" :value="r.run.id">{{ r.run.name }}</option></select>
+        <select v-model.number="runId" @change="pick"><option v-for="r in tentRuns" :key="r.run.id" :value="r.run.id">{{ r.run.name }}</option></select>
       </label>
     </div>
+    <div v-if="!run" class="panel empty stack">
+      <p class="muted">In {{ current()?.name || 'diesem Zelt' }} läuft noch kein Durchgang.</p>
+      <router-link :to="{ path: '/mehr/durchgaenge', query: { neu: 1, zelt: tent.id } }" class="btn primary">Durchgang anlegen</router-link>
+    </div>
+    <Reservoir v-else-if="rdwc" :run-id="runId" />
+    <template v-else>
 
     <section class="panel stack" v-if="plants.length">
       <h3>Welche Pflanzen, wie viel Wasser?</h3>
@@ -150,6 +170,7 @@ onMounted(load)
       <label class="field"><span>Notiz</span><input v-model="meas[i].text" /></label>
       <button class="primary" @click="confirmCan(i)">Gießen eintragen</button>
     </article>
+    </template>
   </main>
 </template>
 

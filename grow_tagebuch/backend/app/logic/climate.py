@@ -86,6 +86,7 @@ async def read_live(session: Session, setup_id: int) -> dict:
         "heatmat_on": ha.on(g("heatmat_switch")),
         "room_temp": ha.num(g("room_temp")),
         "room_rh": ha.num(g("room_rh")),
+        "water_temp": ha.num(g("water_temp")),
         "ts": datetime.now().replace(microsecond=0).isoformat(),
     }
 

@@ -217,7 +217,8 @@ def _run_text(session: Session, run: Run, setup: Optional[Setup]) -> str:
     soil = session.get(SoilProfile, run.soil_id) if run.soil_id else None
     water = session.get(WaterProfile, run.water_id) if run.water_id else None
     lines = [f"Durchgang „{run.name}“, Start {run.start_date:%d.%m.%Y}, Lichtplan {_f(run.light_hours, 0)} h ab {run.light_on_time}, "
-             f"Lampenstufe {run.light_level or '–'}, Lampe–Spitze {run.lamp_distance_cm or '–'} cm"]
+             f"Lampe {run.light_level or '–'}{' % gedimmt' if setup and setup.light_unit == 'prozent' else ' (Stufe)'}, "
+             f"Lampe–Spitze {run.lamp_distance_cm or '–'} cm"]
     if setup:
         lines.append(f"Zelt „{setup.name}“ {setup.width_cm or '?'}×{setup.depth_cm or '?'}×{setup.height_cm or '?'} cm, "
                      f"Medium {setup.medium}, Lampe {setup.lamp or 'Ionframe EVO4 (Vollspektrum-LED, Stufen 1–10)'}")
@@ -225,6 +226,17 @@ def _run_text(session: Session, run: Run, setup: Optional[Setup]) -> str:
         comps = ", ".join(f"{c.get('name')} {c.get('pct')} %" for c in (soil.components or []) if c.get("name"))
         lines.append(f"Erde: {soil.name} ({soil.schedule_type}, vorgedüngt ca. {soil.prefertilized_weeks} Wochen, "
                      f"Wurmhumus {soil.worm_humus_pct} %){': ' + comps if comps else ''}")
+    if setup and setup.medium == "rdwc":
+        from sqlmodel import select as _sel
+        res = session.exec(_sel(LogEntry).where(LogEntry.run_id == run.id, LogEntry.type == "reservoir")
+                           .order_by(LogEntry.ts.desc()).limit(6)).all()
+        lines.append("RDWC (rezirkulierende Hydrokultur), mineralisch mit CANNA Aqua. Reservoir-Einträge (neueste zuerst):")
+        for l in res:
+            prods = ", ".join(f"{x.get('name')} {_f(x.get('per_l'))} ml/l" for x in (l.products or []))
+            lines.append(f"- {l.ts:%d.%m. %H:%M} {l.reservoir_action or 'messung'}: {_f(l.volume_l)} l, EC {_f(l.ec_in, 2)}, "
+                         f"pH {_f(l.ph_in)}, Wasser {_f(l.water_temp)} °C{'; ' + prods if prods else ''}")
+        if not res:
+            lines.append("- noch keine")
     if water:
         lines.append(f"Wasser: {water.name}, EC {_f(water.ec, 2)} mS/cm, pH {_f(water.ph)}, Ca {_f(water.ca_mg_l, 0)} mg/l, "
                      f"Mg {_f(water.mg_mg_l, 0)} mg/l, Härte {_f(water.hardness_dh)} °dH")

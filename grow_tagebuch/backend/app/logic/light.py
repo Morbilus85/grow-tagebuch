@@ -28,6 +28,16 @@ def _linfit(xs, ys):
     return b, my - b * mx
 
 
+UNIT_LEVELS = {
+    "stufe": list(range(1, 11)),
+    "prozent": list(range(10, 101, 5)),
+}
+TABLE_LEVELS = {
+    "stufe": list(range(1, 11)),
+    "prozent": [20, 30, 40, 50, 60, 70, 80, 90, 100],
+}
+
+
 class LightModel:
     """PPFD-Modell aus Messpunkten in der Zeltmitte (Punkt A).
 
@@ -35,7 +45,8 @@ class LightModel:
     wird im log-log-Raum interpoliert (Potenzgesetz), außerhalb mit dem nächsten Exponenten extrapoliert.
     """
 
-    def __init__(self, points: Iterable):
+    def __init__(self, points: Iterable, unit: str = "stufe"):
+        self.unit = unit if unit in UNIT_LEVELS else "stufe"
         center = defaultdict(list)
         edges = defaultdict(list)
         for p in points:
@@ -98,7 +109,7 @@ class LightModel:
         top = int(max_distance) if max_distance else 70
         out = []
         for dist in range(25, max(top, 25) + 1, 5):
-            for lv in range(1, 11):
+            for lv in UNIT_LEVELS[self.unit]:
                 p = self.ppfd(lv, dist)
                 if p is None or not (lo <= p <= hi):
                     continue

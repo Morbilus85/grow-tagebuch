@@ -28,6 +28,7 @@ class Setup(SQLModel, table=True):
     status: str = "aktiv"  # geplant | aktiv | abgebaut
     lamp: str = ""  # z. B. „Spider Farmer SE5000“
     leaf_offset: Optional[float] = 1.0  # Blatt so viel °C kühler als Luft (negativ = wärmer), für Blatt-VPD
+    light_unit: str = "stufe"  # stufe (1–10, AC Infinity) | prozent (Dimmung 0–100 %, z. B. SE5000 über 0–10 V)
 
 
 class Equipment(SQLModel, table=True):
@@ -221,6 +222,9 @@ class LogEntry(SQLModel, table=True):
     technique_key: Optional[str] = None
     # Produkte: [{product_key, amount, unit, per_l, application}]
     products: list = Field(default_factory=list, sa_column=Column(JSON))
+    # RDWC-Reservoir (type=reservoir)
+    reservoir_action: Optional[str] = None  # wechsel | nachfuellen | messung
+    water_temp: Optional[float] = None
     # Schädlinge / Probleme
     severity: Optional[int] = None  # 1-3
     case_id: Optional[int] = Field(default=None, foreign_key="pestcase.id", index=True)

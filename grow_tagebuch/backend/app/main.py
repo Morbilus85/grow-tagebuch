@@ -75,6 +75,9 @@ async def lifespan(app: FastAPI):
         if seed(s):
             log.info("Startdaten angelegt")
         sync_training(s)
+        from .logic import reservoir
+        if reservoir.ensure_products(s):
+            log.info("CANNA-Aqua-Produkte ergänzt")
     sched = AsyncIOScheduler()
     interval = int(options().get("climate_interval_minutes", 10) or 10)
     sched.add_job(sample_job, "interval", minutes=interval, id="climate", next_run_time=None)

@@ -305,3 +305,45 @@ def test_vpd_leaf_offset():
     assert climate.vpd_leaf(t, rh, 0) == climate.vpd_air(t, rh)
     assert climate.vpd_leaf(t, rh, 2) < climate.vpd_leaf(t, rh, 1) < climate.vpd_leaf(t, rh, 0)
     assert climate.vpd_leaf(t, rh, -1) > climate.vpd_air(t, rh)
+
+
+def test_light_model_percent():
+    from types import SimpleNamespace as P
+
+    from app.logic import light
+    pts = [P(point="A", distance_cm=d, level=lv, ppfd=v) for d, lv, v in (
+        (45, 25, 301.1), (45, 50, 598.1), (45, 75, 883.2), (45, 100, 1125.2),
+        (60, 25, 273.7), (60, 50, 542.3), (60, 75, 801.0), (60, 100, 1021.0))]
+    m = light.LightModel(pts, "prozent")
+    assert abs(m.ppfd(75, 45) - 883) < 30  # lineare Anpassung, SE5000 flacht oben leicht ab
+    recs = m.recommend("veg", 18)
+    assert recs and all(r["level"] % 5 == 0 and r["level"] >= 10 for r in recs)
+    assert all(300 <= r["ppfd"] <= 600 for r in recs)
+
+
+def test_ha_num_light_and_fan():
+    from app import ha
+    assert ha.num({"entity_id": "light.x", "state": "on", "attributes": {"brightness": 191}}) == 75
+    assert ha.num({"entity_id": "light.x", "state": "off", "attributes": {}}) == 0
+    assert ha.num({"entity_id": "fan.x", "state": "on", "attributes": {"percentage": 15}}) == 15
+    assert ha.num({"entity_id": "fan.x", "state": "unavailable", "attributes": {}}) is None
+    assert ha.num({"entity_id": "sensor.x", "state": "4"}) == 4
+
+
+def test_reservoir_recipe_and_status():
+    from datetime import date, datetime
+    from types import SimpleNamespace as P
+
+    from app.logic import reservoir
+    prods = {"canna_pk_13_14": P(name="PK 13/14", in_stock=False), "canna_aqua_flores_a": P(name="Aqua Flores A", in_stock=True)}
+    r = reservoir.recipe("bloom2", 40, 0.44, prods)
+    keys = [i["key"] for i in r["items"]]
+    assert keys[0] == "canna_aqua_flores_a" and "canna_pk_13_14" not in keys
+    assert next(i for i in r["items"] if i["key"] == "canna_aqua_flores_a")["total_ml"] == 140
+    assert r["ec_target"] == [2.04, 2.44]
+    assert any("PK 13/14" in n for n in r["notes"])
+    assert reservoir.suggest_stage([{"phase": "bloom", "bloom_week": 4}]) == "bloom1"
+    logs = [P(reservoir_action="wechsel", ts=datetime(2026, 11, 10, 18), volume_l=40, ec_in=1.4, ph_in=6.6, water_temp=23.0)]
+    st = reservoir.status(logs, today=date(2026, 11, 20))
+    assert st["days_since_change"] == 10 and st["change_due_in"] == -3
+    assert len(st["messages"]) == 3  # Wechsel fällig, pH, Wassertemperatur

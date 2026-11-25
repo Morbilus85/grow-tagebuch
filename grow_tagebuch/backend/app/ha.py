@@ -35,8 +35,20 @@ async def get_states(entity_ids: list[str]) -> dict[str, dict]:
 
 
 def num(state: Optional[dict]) -> Optional[float]:
+    """Zahlenwert einer Entität. Lampen (light.*) liefern die Helligkeit in %, Lüfter (fan.*) die Drehzahl in %."""
     if not state:
         return None
+    eid = state.get("entity_id") or ""
+    if eid.startswith(("light.", "fan.")):
+        st = state.get("state")
+        if st == "off":
+            return 0.0
+        if st != "on":
+            return None
+        a = state.get("attributes") or {}
+        if eid.startswith("fan."):
+            return float(a["percentage"]) if a.get("percentage") is not None else None
+        return round(a["brightness"] * 100 / 255) if a.get("brightness") is not None else 100.0
     try:
         return float(state.get("state"))
     except (TypeError, ValueError):

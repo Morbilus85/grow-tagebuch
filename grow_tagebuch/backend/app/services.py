@@ -40,7 +40,8 @@ def recent_logs(session: Session, plant_id: int, days: int = 21) -> list[LogEntr
 
 def light_model(session: Session, setup_id: int) -> light.LightModel:
     pts = session.exec(select(LightCalibration).where(LightCalibration.setup_id == setup_id)).all()
-    return light.LightModel(pts)
+    s = session.get(Setup, setup_id)
+    return light.LightModel(pts, s.light_unit if s else "stufe")
 
 
 def sync_light_level(session: Session, run: Run, live_level) -> bool:
@@ -53,8 +54,11 @@ def sync_light_level(session: Session, run: Run, live_level) -> bool:
     old = run.light_level
     run.light_level = lvl
     session.add(run)
-    session.add(LogEntry(run_id=run.id, type="note", tags=["licht", "controller"],
-                         text=f"Lichtstufe laut Controller: {old if old is not None else '–'} → {lvl}"))
+    s = session.get(Setup, run.setup_id)
+    pct = s is not None and s.light_unit == "prozent"
+    text = (f"Dimmung laut Steuerung: {old if old is not None else '–'} → {lvl} %" if pct
+            else f"Lichtstufe laut Controller: {old if old is not None else '–'} → {lvl}")
+    session.add(LogEntry(run_id=run.id, type="note", tags=["licht", "controller"], text=text))
     session.commit()
     session.refresh(run)
     return True
@@ -184,7 +188,7 @@ def plant_status(session: Session, plant: Plant, run: Run, setup: Optional[Setup
     sp = space.assess(setup.height_cm if setup else None, setup.lamp_hang_cm if setup else 15, plant.pot_height_cm, hs,
                       rec[0]["distance_cm"] if rec else None, strain.auto if strain else True, ph.week,
                       strain.max_height_cm if strain else None)
-    actions = next_actions(plant, ph, last_water, today)
+    actions = next_actions(plant, ph, last_water, today, rdwc=bool(setup and setup.medium == "rdwc"))
     tr = plant_training(session, plant, ph, sp["status"], today) if ph.day else []
     now_list = [t for t in tr if t["status"] == "jetzt" and t["suitability"] != "abraten"]
     return {
@@ -238,7 +242,7 @@ def germination(plant: Plant, now_dt: Optional[datetime] = None) -> Optional[dic
     return out
 
 
-def next_actions(plant: Plant, ph: phases.PhaseInfo, last_water, today: date) -> list[str]:
+def next_actions(plant: Plant, ph: phases.PhaseInfo, last_water, today: date, rdwc: bool = False) -> list[str]:
     a = []
     g = germination(plant)
     if ph.phase in ("einweichen", "keimung", "geplant"):
@@ -246,15 +250,17 @@ def next_actions(plant: Plant, ph: phases.PhaseInfo, last_water, today: date) ->
             a.append(g["hint"])
         if ph.phase == "keimung":
             a.append("Sobald der Keimling sichtbar ist: oben auf „Aufgelaufen“ tippen.")
-    elif ph.phase == "seedling":
+    elif ph.phase == "seedling" and not rdwc:
         a.append("Nur im Ring um den Keimling gießen (0,1–0,3 l).")
+    elif ph.phase == "seedling":
+        a.append("Wasserstand im Topf so, dass das Substrat feucht bleibt, bis die Wurzeln ins Wasser reichen.")
     if ph.phase == "veg" and not plant.preflower_on and ph.preflower_date and (ph.preflower_date - today).days <= 7:
         a.append("Auf Vorblüte achten (weiße Härchen an den Nodien) und bestätigen.")
     if ph.phase == "flush":
-        a.append("Nur noch Wasser. Trichome prüfen.")
+        a.append("Reservoir auf Abreifen umstellen. Trichome prüfen." if rdwc else "Nur noch Wasser. Trichome prüfen.")
     if ph.phase == "harvest":
         a.append("Erntereif laut Plan – Trichome prüfen (milchig/bernstein).")
-    if last_water and ph.phase not in ("einweichen", "geplant"):
+    if last_water and not rdwc and ph.phase not in ("einweichen", "geplant"):
         d = (today - last_water.ts.date()).days
         if d >= 3:
             a.append(f"Letztes Gießen vor {d} Tagen – Topf prüfen (Gewicht/Fingerprobe).")

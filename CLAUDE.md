@@ -44,7 +44,20 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 - Lichtstufe (0.12.2): Controller-Stufe (`light_level`-Sensor, > 0) hat Vorrang; `services.sync_light_level` zieht
   `Run.light_level` nach (in `/api/today` und im Klima-Job) und schreibt Notiz „Lichtstufe laut Controller: alt → neu“.
   Im Licht-Formular ist „Stufe“ dann gesperrt, Speichern schickt keine Stufe mit.
-- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 51 grün, Stand 0.12.2). KI-Test heißt `test_zz_ai_chat.py`,
+- Zelt-Karteikarten (0.13.0): `src/tent.js` (gewähltes Zelt, localStorage `grow.zelt`, `loadTents()`), Komponente
+  `TentTabs.vue` oben auf Heute/Gießen/Klima/Licht; Seiten filtern auf `tent.id`. Alte Query-Parameter (`?zelt=`, `?run=`)
+  setzen das Zelt und werden entfernt. Karteikarten nur bei ≥ 2 Zelten (Status aktiv oder mit aktivem Durchgang).
+- RDWC (0.13.0): `logic/reservoir.py` (CANNA-Aqua-Schema ml/l = Hersteller ml/10 l ÷ 10, Mitte der Spanne; Einrühr-
+  Reihenfolge; Ziel-EC = EC+ + Wasser-EC; Status: Wechsel alle 7 d Richtwert, pH 5,8–6,2, Wasser 18–21 °C, Warnung > 22 °C).
+  `ensure_products` legt fehlende CANNA-Produkte beim Start an (Key `canna_*`, `cannazym`). API `GET /api/reservoir/schema`,
+  `GET /api/reservoir/{run_id}`, `POST /api/reservoir/recipe`. Einträge = `LogEntry` type `reservoir` (run-weit, ohne
+  Pflanze) mit `reservoir_action` (wechsel|nachfuellen|messung), `volume_l`, `ec_in`, `ph_in`, `water_temp`, `products`.
+  Für RDWC-Zelte zeigt `/giessen` die Komponente `Reservoir.vue`, Heute eine Reservoir-Karte, keine Gieß-Hinweise.
+  Sensor-Rolle `water_temp` vorbereitet; Push bei Wassertemperatur noch offen (kein Sensor vorhanden).
+- Licht-Einheit (0.13.0): `Setup.light_unit` stufe|prozent. `LightModel(points, unit)`, Stufen `UNIT_LEVELS`,
+  Tabellenspalten `TABLE_LEVELS`. `ha.num` liest `light.*` als Helligkeit % (aus = 0) und `fan.*` als Drehzahl %.
+  Equipment-API `POST /api/setups/{id}/equipment`, `PATCH/DELETE /api/equipment/{id}`, `DELETE /api/light/calibration/{id}`.
+- Tests: `cd grow_tagebuch/backend && python -m pytest -q` (Stand: 55 grün, Stand 0.13.0). KI-Test heißt `test_zz_ai_chat.py`,
   damit er nach `test_flow` läuft (gemeinsame Test-DB).
 
 ## Release-Ablauf (immer so)
@@ -68,9 +81,13 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   wurden in 0.8.0 bewusst wieder entfernt – nicht erneut einbauen. Realistischere Werte trägt Kilian ggf. von Hand ein.
 - Regeln: App liest HA nur, schaltet nie. Automationen „Growzelt-Heizung“ und „Heizmatte“ hat Kilian bewusst deaktiviert –
   nicht ohne Rückfrage aktivieren. Neue HA-Automationen nur deaktiviert anlegen; größere Änderungen vorher vorschlagen.
-- Sensoren: Zelt `sensor.homegrow_probe_sensor_sonden_*` (Temperatur, Luftfeuchtigkeit, VPD), Lampe Stufe
+- Sensoren Zelt 1: `sensor.homegrow_probe_sensor_sonden_*` (Temperatur, Luftfeuchtigkeit, VPD), Lampe Stufe
   `sensor.homegrow_port_2_aktuelle_leistung`, Lampe an/aus `binary_sensor.homegrow_port_2_zustand`, Abluft Port 1,
   Heizung `switch.steckdose_growzelt_heizung`, Heizmatte `switch.steckdose_heizmatte`, Raum `sensor.sensor_display_grow_room_*`.
+- Sensoren Zelt 2 (M5Stack/ESPHome „growzelt-steuerung“): `sensor.growzelt_steuerung_growzelt_temperatur`, `…_luftfeuchte`,
+  VPD `sensor.zelt_2_vpd` (Template), Lampe `light.growzelt_steuerung_growzelt_lampe` (0–10 V, Helligkeit = Dimmung %),
+  Abluft `fan.growzelt_steuerung_growzelt_abluft` (%). Kein Raumsensor, keine Heizung, kein Wassertemperatur-Sensor.
+  HA-Automationen „Abluft Zelt 2 – Grundstufe & Notfall“ und „Growzelt Lichtplan“ steuern – die App liest nur.
 - ntfy: Topic `grow_HA_Tagebuxh_App` auf ntfy.sh (so von Kilian vorgegeben, in der App gespeichert). Aufgaben täglich 08:00,
   Klima-Alarm Standard (deutliche Abweichung > 30 min, Wiederholung 3 h), Sensor-Ausfall 30 min. Kein HA-Notify – App bleibt lesend.
 - Claude-API-Schlüssel steht in der Add-on-Konfiguration (`anthropic_api_key`), nie im Code. Schlüssel ist auf Workspace „Default“ beschränkt.
@@ -81,6 +98,12 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
   Lichtkalibrierung in `docs/messungen/licht_ionframe_evo4.csv`. Stufe 4 (seit 18.11.), 60 cm.
 - 20-l-Stofftöpfe, Floragard Grow Mix Organic + 10–20 % BioBizz Wurmhumus, Pflanzloch mit Light-Mix. Leitungswasser Essen
   (EC 0,47, pH 7,9). Nur organisch, BioBizz + eigene Zusätze. Haushalt 3 Erwachsene → KCanG-Limit 9 Pflanzen.
+
+- Zelt 2 „Abstellraum“: Homebox 100×100×200, Spider Farmer SE5000 (gedimmt per M5Stack DAC2), Abluft Prima Klima
+  160 mm EC mit Filter, RDWC Growrilla (3 Töpfe), CANNA Aqua. Lichtplan 18/6 ab 16:00 (Abstellraum ohne Heizung, Licht
+  bewusst nachts). Lichtmessung 25.11.2026 in `docs/messungen/licht_se5000.csv` (Mitte 30/45/60 cm × 25/50/75/100 %,
+  Rand bei 45 cm/75 %; vorne links bei offenem Reißverschluss ungültig, nicht in der App). Randpunkte: B hinten rechts,
+  C vorne rechts, D vorne links, E hinten links. Leitungswasser gemessen EC 0,44.
 
 ## Aktueller Stand der Daten
 
@@ -96,11 +119,8 @@ Sprache mit Kilian: Deutsch, direkt, knapp, ehrliche Einschätzungen. **Alles se
 
 ## Offen
 
-- Zweites Zelt (Abstellraum): Homebox 100×100×200 fest, Lampe Spider Farmer SE5000, wahrscheinlich RDWC (Fertigsystem,
-  2 Plätze, mineralisch, keine Osmose; Leitungswasser-EC ca. 0,44). Rest noch nicht gekauft. In der App als Zelt
-  „geplant“ anlegen. RDWC-Teil bauen, sobald System + Dünger feststehen: Reservoir-Log (Wechsel/Nachfüllen, l, EC, pH,
-  Wassertemp.), Zielbereiche (pH 5,8–6,2, EC je Phase minus Grund-EC, Wasser 18–20 °C), Aufgaben, Push > 22 °C Wassertemp.,
-  Wassertemperatur-Sensor in HA vorsehen. SE5000 braucht eigene Lichtkalibrierung.
+- Zelt 2 / RDWC: Wassertemperatur-Sensor fehlt (dann Rolle `water_temp` setzen und Push > 22 °C bauen). Abstand
+  Lampe–Spitze im Durchgang eintragen, sobald Pflanzen stehen. Klima-Zielbereiche sind noch nicht RDWC-spezifisch.
 
 - Dosierungen von den Etiketten nachtragen, sobald Kilian Fotos schickt (DiMikro, Rootmax, Ackerschachtelhalm,
   Brennnesselpulver, Aloe-Puder, Neem Cake, CalMag).

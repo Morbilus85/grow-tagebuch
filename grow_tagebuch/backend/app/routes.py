@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 
 from . import services
 from .db import PHOTO_DIR, get_session
-from .logic import climate, light
+from .logic import climate, light, reservoir
 from .models import (
     ClimateSample,
     Equipment,
@@ -99,12 +99,22 @@ async def today(session: Session = S):
         la["phase_group"] = lgroup
         la["level"] = level
         la["level_source"] = "controller" if live_level and live_level > 0 else "eingestellt"
+        la["unit"] = model.unit
         la["distance_cm"] = run.lamp_distance_cm
         la["lamp_on"] = live.get("light_on")
         if live.get("light_on") is False:
             la["messages"].insert(0, "Lampe ist laut Controller gerade aus. Werte gelten für die eingestellte Stufe, wenn sie an ist.")
         la["recommendations"] = model.recommend(lgroup, run.light_hours)
+        if not statuses:  # ohne Pflanzen keine Phase → keine Zielbewertung
+            la["messages"] = [m for m in la["messages"] if "laut Controller" in m]
+            la["status"] = "ok" if la.get("ppfd") is not None else la["status"]
+            la.pop("target", None)
+            la["phase_group"] = None
+        res = None
+        if setup and setup.medium == "rdwc":
+            res = reservoir.status(_reservoir_logs(session, run.id), live_water_temp=live.get("water_temp"))
         out.append({
+            "reservoir": res,
             "run": run.model_dump(),
             "setup": setup.model_dump() if setup else None,
             "plants": statuses,
@@ -649,15 +659,20 @@ def climate_history(setup_id: int, hours: int = 48, session: Session = S):
 @api.get("/light/{setup_id}")
 def light_info(setup_id: int, hours: float = 20, session: Session = S):
     model = services.light_model(session, setup_id)
+    levels = light.TABLE_LEVELS[model.unit]
     table = []
     for dist in (30, 35, 40, 45, 50, 55, 60, 65, 70):
         row = {"distance_cm": dist}
-        for lv in range(1, 11):
+        for lv in levels:
             p = model.ppfd(lv, dist)
             row[str(lv)] = p
         table.append(row)
     return {
         "calibrated": model.calibrated,
+        "unit": model.unit,
+        "levels": levels,
+        "measured_on": max((p.measured_on for p in session.exec(select(LightCalibration).where(
+            LightCalibration.setup_id == setup_id)).all()), default=None),
         "edge_factor": model.edge_factor,
         "measured_levels": model.levels_measured,
         "measured_distances": model.distances,
@@ -691,7 +706,8 @@ def setups(session: Session = S):
     return out
 
 
-SETUP_FIELDS = ("name", "kind", "indoor", "width_cm", "depth_cm", "height_cm", "lamp_hang_cm", "notes", "medium", "status", "lamp", "leaf_offset")
+SETUP_FIELDS = ("name", "kind", "indoor", "width_cm", "depth_cm", "height_cm", "lamp_hang_cm", "notes", "medium", "status", "lamp",
+                "leaf_offset", "light_unit")
 
 
 @api.post("/setups")
@@ -699,11 +715,17 @@ def create_setup(data: dict, session: Session = S):
     if not (data.get("name") or "").strip():
         raise HTTPException(400, "Name fehlt")
     _check_leaf_offset(data)
+    _check_unit(data)
     s = _apply(Setup(name=data["name"].strip()), {k: v for k, v in data.items() if k in SETUP_FIELDS})
     session.add(s)
     session.commit()
     session.refresh(s)
     return {**s.model_dump(), "equipment": [], "sensors": []}
+
+
+def _check_unit(data: dict) -> None:
+    if "light_unit" in data and data["light_unit"] not in light.UNIT_LEVELS:
+        raise HTTPException(400, "Lichteinheit muss „stufe“ oder „prozent“ sein")
 
 
 def _check_leaf_offset(data: dict) -> None:
@@ -722,6 +744,7 @@ def _check_leaf_offset(data: dict) -> None:
 @api.patch("/setups/{sid}")
 def update_setup(sid: int, data: dict, session: Session = S):
     _check_leaf_offset(data)
+    _check_unit(data)
     s = _apply(_get(session, Setup, sid), data)
     session.add(s)
     session.commit()
@@ -742,6 +765,94 @@ def delete_setup(sid: int, session: Session = S):
     session.delete(s)
     session.commit()
     return {"ok": True}
+
+
+EQUIP_FIELDS = ("category", "brand", "model", "specs", "notes")
+
+
+@api.post("/setups/{sid}/equipment")
+def add_equipment(sid: int, data: dict, session: Session = S):
+    _get(session, Setup, sid)
+    if not (data.get("category") or "").strip():
+        raise HTTPException(400, "Kategorie fehlt")
+    e = Equipment(setup_id=sid, **{k: data[k] for k in EQUIP_FIELDS if k in data})
+    session.add(e)
+    session.commit()
+    session.refresh(e)
+    return e
+
+
+@api.patch("/equipment/{eid}")
+def update_equipment(eid: int, data: dict, session: Session = S):
+    e = _get(session, Equipment, eid)
+    for k in EQUIP_FIELDS:
+        if k in data:
+            setattr(e, k, data[k])
+    session.add(e)
+    session.commit()
+    session.refresh(e)
+    return e
+
+
+@api.delete("/equipment/{eid}")
+def delete_equipment(eid: int, session: Session = S):
+    session.delete(_get(session, Equipment, eid))
+    session.commit()
+    return {"ok": True}
+
+
+@api.delete("/light/calibration/{cid}")
+def delete_calibration(cid: int, session: Session = S):
+    session.delete(_get(session, LightCalibration, cid))
+    session.commit()
+    return {"ok": True}
+
+
+# ------------------------------------------------------------------ RDWC-Reservoir
+
+@api.get("/reservoir/schema")
+def reservoir_schema():
+    return {"stages": reservoir.as_schema(), "source": {"url": reservoir.CANNA_AQUA_URL,
+                                                        "retrieved_on": reservoir.CANNA_AQUA_RETRIEVED}}
+
+
+def _reservoir_logs(session: Session, run_id: int, limit: int = 50) -> list[LogEntry]:
+    return list(session.exec(select(LogEntry).where(LogEntry.run_id == run_id, LogEntry.type == "reservoir")
+                             .order_by(LogEntry.ts.desc()).limit(limit)))
+
+
+@api.get("/reservoir/{run_id}")
+async def reservoir_state(run_id: int, session: Session = S):
+    run = _get(session, Run, run_id)
+    setup = session.get(Setup, run.setup_id)
+    water = session.get(WaterProfile, run.water_id) if run.water_id else None
+    plants = session.exec(select(Plant).where(Plant.run_id == run_id, Plant.status == "aktiv")).all()
+    phs = [services.phase_of(session, p).dict() for p in plants]
+    live = await climate.read_live(session, run.setup_id)
+    logs = _reservoir_logs(session, run_id)
+    return {
+        "run": run, "setup": setup, "water_ec": water.ec if water else None,
+        "stage_suggestion": reservoir.suggest_stage(phs),
+        "status": reservoir.status(logs, live_water_temp=live.get("water_temp")),
+        "logs": [l.model_dump() for l in logs],
+    }
+
+
+class ReservoirReq(BaseModel):
+    stage: str
+    liters: float
+    water_ec: Optional[float] = None
+
+
+@api.post("/reservoir/recipe")
+def reservoir_recipe(req: ReservoirReq, session: Session = S):
+    if not 0 < req.liters <= 500:
+        raise HTTPException(400, "Tankmenge zwischen 0 und 500 l angeben")
+    prods = {p.key: p for p in session.exec(select(Product)).all()}
+    try:
+        return reservoir.recipe(req.stage, req.liters, req.water_ec, prods)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @api.put("/setups/{sid}/sensors")

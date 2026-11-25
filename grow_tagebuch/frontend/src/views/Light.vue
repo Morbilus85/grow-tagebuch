@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api.js'
 import { fmt, rating, say } from '../util.js'
+import TentTabs from '../components/TentTabs.vue'
+import { current, loadTents, setTent, tent } from '../tent.js'
 
 const t = ref(null)
 const info = ref(null)
@@ -10,15 +12,23 @@ const form = ref({})
 const cal = ref({ distance_cm: 45, level: 7, point: 'A', ppfd: null })
 const route = useRoute()
 const router = useRouter()
-const runId = ref(Number(route.query.run) || null)
-const run = computed(() => t.value?.runs.find((r) => r.run.id === runId.value) || t.value?.runs[0])
-function pickRun(id) { runId.value = id; router.replace({ path: '/licht', query: { run: id } }); load() }
+const multi = computed(() => tent.list.length > 1)
+const run = computed(() => multi.value ? t.value?.runs.find((r) => r.run.setup_id === tent.id) : t.value?.runs[0])
+const pct = computed(() => (run.value?.light.unit || info.value?.unit) === 'prozent')
+const lvl = (v) => v == null ? '–' : pct.value ? `${v} %` : `Stufe ${v}`
 const fromController = computed(() => run.value?.light.level_source === 'controller')
 const PH = { seedling: 'Sämling', veg: 'Wachstum', bloom: 'Blüte' }
 
 async function load() {
-  t.value = await api.get('today')
+  const [today] = await Promise.all([api.get('today'), loadTents()])
+  if (route.query.run) {
+    const q = today.runs.find((x) => x.run.id === Number(route.query.run))
+    if (q) setTent(q.run.setup_id)
+    router.replace({ path: '/licht' })
+  }
+  t.value = today
   const r = run.value
+  if (pct.value && cal.value.level === 7) cal.value.level = 75
   if (!r) return
   form.value = { light_hours: r.run.light_hours, light_level: r.run.light_level, lamp_distance_cm: r.run.lamp_distance_cm }
   info.value = await api.get(`light/${r.run.setup_id}?hours=${r.run.light_hours}`)
@@ -28,7 +38,7 @@ async function save() {
   if (fromController.value) delete data.light_level
   await api.patch(`runs/${run.value.run.id}`, data)
   await api.post('logs', { run_id: run.value.run.id, type: 'note', tags: ['licht'],
-    text: `Licht: ${form.value.light_hours} h, Stufe ${fromController.value ? run.value.light.level : form.value.light_level}, Abstand ${form.value.lamp_distance_cm} cm` })
+    text: `Licht: ${form.value.light_hours} h, ${lvl(fromController.value ? run.value.light.level : form.value.light_level)}, Abstand ${form.value.lamp_distance_cm} cm` })
   say('Lichteinstellung gespeichert')
   load()
 }
@@ -49,11 +59,17 @@ onMounted(load)
 </script>
 
 <template>
-  <main class="page stack-lg" v-if="run">
+  <main class="page stack-lg" v-if="t && !run">
+    <TentTabs @change="load" />
     <h1>Licht</h1>
-    <div v-if="t.runs.length > 1" class="row" role="group" aria-label="Zelt">
-      <button v-for="r in t.runs" :key="r.run.id" :class="{ primary: r.run.id === run.run.id }" @click="pickRun(r.run.id)">{{ r.setup?.name || r.run.name }}</button>
+    <div class="panel empty stack">
+      <p class="muted">In {{ current()?.name || 'diesem Zelt' }} läuft noch kein Durchgang. Lichtplan und Abstand gehören zum Durchgang.</p>
+      <router-link :to="{ path: '/mehr/durchgaenge', query: { neu: 1, zelt: tent.id } }" class="btn primary">Durchgang anlegen</router-link>
     </div>
+  </main>
+  <main class="page stack-lg" v-if="run">
+    <TentTabs @change="load" />
+    <h1>Licht</h1>
     <p v-if="run.setup?.lamp" class="small muted">{{ run.setup.name }} · {{ run.setup.lamp }}</p>
 
     <section class="panel stack">
@@ -63,7 +79,8 @@ onMounted(load)
       </div>
       <div class="grid3">
         <label class="field"><span>Licht (h/Tag)</span><input type="number" min="0" max="24" step="1" v-model.number="form.light_hours" /></label>
-        <label class="field"><span>{{ fromController ? 'Stufe (Contr.)' : 'Stufe (1–10)' }}</span><input type="number" min="1" max="10" step="1" v-model.number="form.light_level" :readonly="fromController" :class="{ ro: fromController }" /></label>
+        <label class="field"><span>{{ pct ? (fromController ? 'Dimmung % (Steuerung)' : 'Dimmung %') : (fromController ? 'Stufe (Contr.)' : 'Stufe (1–10)') }}</span>
+          <input type="number" :min="pct ? 10 : 1" :max="pct ? 100 : 10" :step="pct ? 5 : 1" v-model.number="form.light_level" :readonly="fromController" :class="{ ro: fromController }" /></label>
         <label class="field"><span>Abstand (cm)</span><input type="number" min="10" max="120" step="5" v-model.number="form.lamp_distance_cm" /></label>
       </div>
       <div class="grid3 result">
@@ -71,7 +88,8 @@ onMounted(load)
         <div><p class="small muted">Rand</p><p class="num big">{{ fmt.n(run.light.ppfd_edge, 0) }}</p><p class="small muted">µmol/m²/s</p></div>
         <div><p class="small muted">DLI</p><p class="num big">{{ fmt.n(run.light.dli) }}</p><p class="small muted">max. {{ run.light.target?.dli_max }}</p></div>
       </div>
-      <p v-if="fromController" class="small muted">Stufe kommt live vom AC-Infinity-Controller und wird automatisch übernommen. Ändern am Controller – die App schaltet nicht.</p>
+      <p v-if="fromController" class="small muted">{{ pct ? 'Dimmung kommt live aus Home Assistant (Zeltsteuerung) und wird automatisch übernommen. Ändern in HA – die App schaltet nicht.'
+        : 'Stufe kommt live vom AC-Infinity-Controller und wird automatisch übernommen. Ändern am Controller – die App schaltet nicht.' }}</p>
       <p v-for="m in run.light.messages" :key="m" class="note warn">{{ m }}</p>
       <button class="primary" @click="save">Speichern</button>
     </section>
@@ -84,7 +102,7 @@ onMounted(load)
           <p class="small muted">Ziel {{ info.targets[ph].ppfd[0] }}–{{ info.targets[ph].ppfd[1] }}, DLI bis {{ info.targets[ph].dli_max }}</p>
           <ul class="recs">
             <li v-for="r in recs" :key="r.distance_cm" class="num">
-              {{ r.distance_cm }} cm, Stufe {{ r.level }} <span class="muted">({{ fmt.n(r.ppfd, 0) }}, DLI {{ fmt.n(r.dli) }}{{ r.extrapolated ? ', geschätzt' : '' }})</span>
+              {{ r.distance_cm }} cm, {{ lvl(r.level) }} <span class="muted">({{ fmt.n(r.ppfd, 0) }}, DLI {{ fmt.n(r.dli) }}{{ r.extrapolated ? ', geschätzt' : '' }})</span>
             </li>
             <li v-if="!recs.length" class="muted">Keine passende Kombination – Lichtstunden reduzieren.</li>
           </ul>
@@ -94,19 +112,21 @@ onMounted(load)
 
     <section class="stack" v-if="info">
       <h2>PPFD in der Zeltmitte</h2>
-      <p class="small muted">Aus deiner Messung vom 27.10. hochgerechnet. Grün: Zielbereich der aktuellen Phase. Am Rand kommen etwa {{ Math.round((info.edge_factor || 0) * 100) }} % davon an.</p>
+      <p v-if="!info.calibrated" class="note warn">Für dieses Zelt gibt es noch keine Lichtmessung – unten Messpunkte eintragen.</p>
+      <p v-else class="small muted">Aus deiner Messung vom {{ fmt.date(info.measured_on) }} hochgerechnet. Grün: Zielbereich der aktuellen Phase.
+        Am Rand kommen etwa {{ Math.round((info.edge_factor || 0) * 100) }} % davon an.</p>
       <div class="scroll">
         <table class="heat num">
-          <thead><tr><th>cm</th><th v-for="l in 10" :key="l" class="r">{{ l }}</th></tr></thead>
+          <thead><tr><th>cm</th><th v-for="l in info.levels" :key="l" class="r">{{ l }}{{ pct ? '%' : '' }}</th></tr></thead>
           <tbody>
             <tr v-for="row in info.table" :key="row.distance_cm">
               <th>{{ row.distance_cm }}</th>
-              <td v-for="l in 10" :key="l" class="r" :class="[cellClass(row[l]), { est: !info.measured_levels.includes(l) || !info.measured_distances.includes(row.distance_cm) }]">{{ fmt.n(row[l], 0) }}</td>
+              <td v-for="l in info.levels" :key="l" class="r" :class="[cellClass(row[l]), { est: !info.measured_levels.includes(l) || !info.measured_distances.includes(row.distance_cm) }]">{{ fmt.n(row[l], 0) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="small muted">Kursiv: geschätzt (nicht direkt gemessen). Stufe 1–2 sind hochgerechnet.</p>
+      <p class="small muted">Kursiv: geschätzt (nicht direkt gemessen){{ pct ? '' : '. Stufe 1–2 sind hochgerechnet' }}.</p>
     </section>
 
     <details class="panel">
@@ -114,7 +134,7 @@ onMounted(load)
       <form class="stack" style="margin-top:12px" @submit.prevent="addCal">
         <div class="grid2">
           <label class="field"><span>Abstand (cm)</span><input type="number" v-model.number="cal.distance_cm" /></label>
-          <label class="field"><span>Stufe</span><input type="number" min="1" max="10" v-model.number="cal.level" /></label>
+          <label class="field"><span>{{ pct ? 'Dimmung %' : 'Stufe' }}</span><input type="number" :min="1" :max="pct ? 100 : 10" v-model.number="cal.level" /></label>
           <label class="field"><span>Punkt</span>
             <select v-model="cal.point"><option value="A">Mitte (A)</option><option v-for="p in ['B', 'C', 'D', 'E']" :key="p" :value="p">Rand {{ p }}</option></select>
           </label>

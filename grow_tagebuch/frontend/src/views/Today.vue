@@ -1,16 +1,22 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { api, photoUrl } from '../api.js'
 import { fmt, LOG_TYPES, milestone, PEST, rating, say, setMilestone } from '../util.js'
 import PhaseBar from '../components/PhaseBar.vue'
 import ClimateStrip from '../components/ClimateStrip.vue'
+import TentTabs from '../components/TentTabs.vue'
+import { current, loadTents, tent } from '../tent.js'
 
 const data = ref(null)
 const err = ref('')
 let timer
+// Bei mehreren Zelten nur das gewählte Zelt zeigen
+const multi = computed(() => tent.list.length > 1)
+const shown = computed(() => !data.value ? [] : multi.value ? data.value.runs.filter((r) => r.run.setup_id === tent.id) : data.value.runs)
+const rdwc = (r) => r.setup?.medium === 'rdwc'
 
 async function load() {
-  try { data.value = await api.get('today'); err.value = '' } catch (e) { err.value = e.message }
+  try { [data.value] = await Promise.all([api.get('today'), loadTents()]); err.value = '' } catch (e) { err.value = e.message }
 }
 async function done(t) {
   await api.post(`tasks/${t.id}/done`)
@@ -30,13 +36,19 @@ onUnmounted(() => clearInterval(timer))
 <template>
   <main class="page wide stack-lg">
     <p v-if="err" class="note bad">Daten konnten nicht geladen werden: {{ err }}</p>
+    <TentTabs />
     <template v-if="data">
-      <div v-if="!data.runs.length" class="panel empty stack">
+      <div v-if="multi && !shown.length" class="panel empty stack">
+        <h2>Kein aktiver Durchgang in {{ current()?.name }}</h2>
+        <p class="muted">Das Zelt läuft, aber es gibt noch keinen Durchgang mit Pflanzen.</p>
+        <router-link :to="{ path: '/mehr/durchgaenge', query: { neu: 1, zelt: tent.id } }" class="btn primary">Durchgang anlegen</router-link>
+      </div>
+      <div v-else-if="!data.runs.length" class="panel empty stack">
         <h2>Kein aktiver Durchgang</h2>
         <p class="muted">Lege unter <router-link to="/mehr/durchgaenge">Mehr → Durchgänge</router-link> einen Durchgang an.</p>
       </div>
 
-      <section v-for="r in data.runs" :key="r.run.id" class="stack">
+      <section v-for="r in shown" :key="r.run.id" class="stack">
         <div class="row between">
           <div>
             <h1>{{ r.run.name }}</h1>
@@ -56,6 +68,15 @@ onUnmounted(() => clearInterval(timer))
 
         <ClimateStrip :climate="r.climate" :light="r.light" :setup-id="r.run.setup_id" :run-id="r.run.id" />
         <p v-for="m in r.light.messages" :key="m" class="note warn small">{{ m }}</p>
+
+        <router-link v-if="r.reservoir" :to="{ path: '/giessen', query: { run: r.run.id } }" class="panel res">
+          <div class="row between"><strong>Reservoir</strong>
+            <span class="chip" :class="r.reservoir.change_due_in == null ? '' : r.reservoir.change_due_in <= 0 ? 'bad' : 'ok'">
+              {{ r.reservoir.days_since_change == null ? 'noch kein Ansatz' : r.reservoir.change_due_in <= 0 ? 'Wechsel fällig' : `Wechsel in ${r.reservoir.change_due_in} d` }}</span></div>
+          <p v-if="r.reservoir.last" class="small num">EC {{ fmt.n(r.reservoir.last.ec, 2) }} · pH {{ fmt.n(r.reservoir.last.ph) }} · Wasser {{ fmt.n(r.reservoir.live_water_temp ?? r.reservoir.last.water_temp) }} °C
+            <span class="muted">({{ fmt.dt(r.reservoir.last.ts) }})</span></p>
+          <p v-for="m in r.reservoir.messages" :key="m" class="small" style="color:var(--amber)">{{ m }}</p>
+        </router-link>
 
         <div v-if="r.tasks.length" class="panel stack">
           <h3>Fällig</h3>
@@ -112,13 +133,13 @@ onUnmounted(() => clearInterval(timer))
           <router-link v-if="s.last_log" :to="`/pflanze/${s.plant.id}`" class="small muted lastlog">
             Letzter Eintrag: {{ LOG_TYPES[s.last_log.type] || 'Notiz' }}, {{ fmt.dt(s.last_log.ts) }}<template v-if="s.last_log.text"> – {{ s.last_log.text }}</template>
           </router-link>
-          <p class="small muted" v-if="s.last_watering">
+          <p class="small muted" v-if="s.last_watering && !rdwc(r)">
             Zuletzt gegossen {{ s.last_watering.days_ago === 0 ? 'heute' : s.last_watering.days_ago === 1 ? 'gestern' : `vor ${s.last_watering.days_ago} Tagen` }}
             ({{ fmt.vol(s.last_watering.volume_l) }})
           </p>
 
           <div class="row actions">
-            <router-link class="btn primary" :to="{ path: '/giessen', query: { run: r.run.id, plant: s.plant.id } }">Gießen</router-link>
+            <router-link class="btn primary" :to="{ path: '/giessen', query: { run: r.run.id, plant: s.plant.id } }">{{ rdwc(r) ? 'Reservoir' : 'Gießen' }}</router-link>
             <router-link class="btn" :to="{ path: '/eintrag', query: { plant: s.plant.id, type: 'observation', photo: 1 } }">Foto</router-link>
             <router-link class="btn" :to="{ path: '/eintrag', query: { plant: s.plant.id, type: 'measurement' } }">Höhe</router-link>
             <router-link class="btn" :to="{ path: '/eintrag', query: { plant: s.plant.id } }">Eintrag</router-link>
@@ -127,7 +148,7 @@ onUnmounted(() => clearInterval(timer))
         </div>
       </section>
 
-      <router-link v-if="data.runs.length" to="/mehr/durchgaenge?neu=1" class="panel add">
+      <router-link v-if="data.runs.length && !multi" to="/mehr/durchgaenge?neu=1" class="panel add">
         <span class="plus">+</span><span><strong>Weiterer Durchgang</strong><br /><span class="small muted">z. B. im zweiten Zelt</span></span>
       </router-link>
     </template>
@@ -135,6 +156,8 @@ onUnmounted(() => clearInterval(timer))
 </template>
 
 <style scoped>
+.res { display: block; text-decoration: none; }
+.res p { margin: 4px 0 0; }
 .add { display: flex; gap: 14px; align-items: center; text-decoration: none; border-style: dashed; }
 .add .plus { font-size: 1.8rem; line-height: 1; color: var(--leaf); width: 32px; text-align: center; }
 .plants { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
